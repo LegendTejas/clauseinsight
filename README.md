@@ -42,7 +42,7 @@ The problem isn't carelessness — it's that legal language is deliberately dens
                  [Streamlit UI]
 ```
 
-*(An architecture diagram can also be found in `docs/architecture.png`)*
+*(An architecture diagram can also be found in `docs/architecture_clauseinsight.pdf`)*
 
 ---
 
