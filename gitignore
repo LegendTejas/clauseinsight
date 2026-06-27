@@ -1,0 +1,199 @@
+# ════════════════════════════════════════════════════════════════
+# ClauseInsight — .gitignore
+# ════════════════════════════════════════════════════════════════
+
+# ── CRITICAL: Secrets — NEVER commit these ───────────────────────
+# Your .env file holds GEMINI_API_KEY — one accidental push and
+# bots will scrape GitHub and exhaust your quota within minutes
+.env
+.env.*
+!.env.example
+secrets.toml
+*.pem
+*.key
+
+
+# ── Python — Virtual Environments ────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+
+# ── Python — Compiled / Cache ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+
+# ── Python — Build Artifacts ─────────────────────────────────────
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+
+# ── Python — Type Checking / Linting ─────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+
+
+# ── Testing Artifacts ────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+nosetests.xml
+test-results/
+
+
+# ── Notebooks (keep exploratory work out of main repo) ───────────
+.ipynb_checkpoints/
+*.ipynb
+
+
+# ── Project-Specific: ChromaDB ───────────────────────────────────
+# ChromaDB creates this directory to persist vector data locally
+# It is regenerated at runtime from any uploaded PDF — do not commit
+chroma_db/
+chroma_store/
+data/chroma_store/
+data/chroma_db/
+.chroma/
+
+
+# ── Project-Specific: Dev Embedding Cache ────────────────────────
+# diskcache saves computed Gemini embeddings to disk
+# Avoids burning through the 1,500 req/day free tier during dev
+# Do not commit — it is local to your machine
+.cache/
+cache/
+embedding_cache/
+
+
+# ── Project-Specific: User Uploaded PDFs ────────────────────────
+# PDFs uploaded by users at runtime — transient, do not commit
+# NOTE: data/sample_contracts/ is intentionally NOT ignored
+#       because those test PDFs are committed for demo purposes
+data/uploads/
+uploads/
+tmp/
+temp/
+
+
+# ── Project-Specific: Risk Scan Cache ────────────────────────────
+# Cached risk results — regenerated at runtime from Gemini responses
+data/risk_results/
+risk_cache/
+
+
+# ── Project-Specific: Downloaded Model Weights ───────────────────
+# Only relevant if sentence-transformers fallback is used
+models/
+*.bin
+*.safetensors
+*.gguf
+*.pt
+*.pth
+
+
+# ── Streamlit ─────────────────────────────────────────────────────
+# secrets.toml is how Streamlit Community Cloud reads your API key
+# It must NEVER be committed — add GEMINI_API_KEY there after deploy
+# config.toml controls theme/layout — safe to commit, keep it
+.streamlit/secrets.toml
+
+
+# ── Logs ─────────────────────────────────────────────────────────
+*.log
+logs/
+log/
+
+
+# ── macOS ─────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+
+# ── Windows ───────────────────────────────────────────────────────
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+
+# ── Linux ─────────────────────────────────────────────────────────
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+
+# ── VS Code ───────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+
+# ── PyCharm / JetBrains ───────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+
+# ── Vim / Emacs ───────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+
+# ── Jupyter ───────────────────────────────────────────────────────
+profile_default/
+ipython_config.py
+
+
+# ── Distribution / Packaging ──────────────────────────────────────
+pip-log.txt
+pip-delete-this-directory.txt
