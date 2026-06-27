@@ -1,0 +1,81 @@
+# ════════════════════════════════════════════════════════════════
+# ClauseInsight — requirements.txt
+# Python 3.11+  |  pip install -r requirements.txt
+# API: Gemini (free tier via aistudio.google.com)
+# ════════════════════════════════════════════════════════════════
+
+# ── PDF Parsing ──────────────────────────────────────────────────
+# PyMuPDF: fast PDF text + page number extraction
+# import as: import fitz
+pymupdf==1.27.2.3
+
+# ── Vector Store ─────────────────────────────────────────────────
+# ChromaDB: local vector database, stores embeddings + metadata
+# No external account needed — runs on your machine
+chromadb==1.5.9
+
+# ── Gemini SDK ───────────────────────────────────────────────────
+# google-genai: the CURRENT recommended Gemini SDK (v2+)
+# Do NOT use google-generativeai — it is deprecated as of 2025
+# Used for: text-embedding-004 (embeddings) + Gemini 2.0 Flash (LLM)
+# Free tier: 15 req/min, 1,500 req/day — more than enough for this project
+#
+# Basic usage:
+#   from google import genai
+#   client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+#   client.models.generate_content(model="gemini-2.0-flash", ...)
+#   client.models.embed_content(model="text-embedding-004", ...)
+google-genai==2.10.0
+
+# ── Rate Limit Handling ──────────────────────────────────────────
+# Gemini free tier: 15 requests per minute cap
+# The risk scanner loops over every clause — on a 30-clause contract
+# it will hit the rate limit without retry logic.
+# tenacity wraps any function with automatic exponential backoff:
+#   @retry(wait=wait_exponential(multiplier=1, min=4, max=60))
+#   def call_gemini(...): ...
+tenacity==9.1.4
+
+# ── Environment and Config ────────────────────────────────────────
+# Loads GEMINI_API_KEY from .env file into os.environ
+# NEVER hardcode API keys — always use this
+python-dotenv==1.2.2
+
+# ── Streamlit UI ─────────────────────────────────────────────────
+# The web app frontend — every screen the user sees
+streamlit==1.58.0
+
+# Extra UI components: metric cards, colored headers, badges
+# Used for the Risk Dashboard (High/Medium/Low visual display)
+streamlit-extras==1.6.0
+
+# ── Data Handling ─────────────────────────────────────────────────
+# Risk results are stored as a DataFrame and displayed as a table
+# Also useful for building the eval Q&A set (20+ pairs)
+pandas==3.0.3
+
+# ── Dev Caching ───────────────────────────────────────────────────
+# Caches embeddings to disk during development
+# Without this: every code change re-calls the Gemini API
+# With this: embeddings are computed once and reused until you clear cache
+# Especially useful since text-embedding-004 has a 1,500 req/day cap
+diskcache==5.6.3
+
+# ── Local Embedding Fallback (OPTIONAL) ───────────────────────────
+# Uncomment ONLY if Gemini API is unavailable or rate-limited
+# Model: all-MiniLM-L6-v2 (768-dim — matches text-embedding-004 dim)
+# WARNING: pulls ~1 GB torch dependency
+# sentence-transformers==5.6.0
+
+# ── Testing ───────────────────────────────────────────────────────
+# Run tests with:          pytest tests/ -v
+# Run with coverage:       pytest tests/ --cov=src --cov-report=term-missing
+pytest==9.1.1
+pytest-cov==7.1.0
+
+# ── Code Quality ──────────────────────────────────────────────────
+# black: auto-formatter     — run: black .
+# ruff:  linter             — run: ruff check .
+# Keep code clean from Day 1 — mentor will read this code
+black==26.5.1
+ruff==0.15.20
