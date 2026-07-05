@@ -30,7 +30,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF 1.27+ uses pymupdf instead of fitz
 
 logger = logging.getLogger(__name__)
 

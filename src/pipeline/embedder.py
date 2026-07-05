@@ -56,8 +56,17 @@ import sqlite3
 from google import genai
 from google.genai import types
 
-from chunker import Chunk
-from store import (
+import sys as _sys
+_src_dir = str(Path(__file__).resolve().parent.parent)
+if _src_dir not in _sys.path:
+    _sys.path.insert(0, _src_dir)
+
+try:
+    from .chunker import Chunk
+except ImportError:
+    from pipeline.chunker import Chunk
+
+from utils.store import (
     CHROMA_COLLECTION,
     DEFAULT_CHROMA_DIR,
     DEFAULT_SQLITE_PATH,
@@ -72,10 +81,10 @@ logger = logging.getLogger(__name__)
 # Embedding constants
 # ──────────────────────────────────────────────────────────────────
 
-EMBEDDING_MODEL = "text-embedding-004"
+EMBEDDING_MODEL = "gemini-embedding-001"
 
-# text-embedding-004 native dimension is 768.
-# Keep all 768 — legal text benefits from the full representation space.
+# gemini-embedding-001 native dimension is 3072.
+# We use output_dimensionality=768 for efficiency — legal text works well at this size.
 EMBEDDING_DIM = 768
 
 # Google free tier: 1,500 req/min.
@@ -127,9 +136,18 @@ def _make_gemini_client() -> genai.Client:
     """
     Create the Google GenAI client from GOOGLE_API_KEY env var.
 
+    Loads .env file first (if python-dotenv is installed) so keys
+    defined there are available via os.environ.
+
     Raises a clear EnvironmentError if the key is missing — better
     than letting the first API call fail with a cryptic auth error.
     """
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass  # python-dotenv not installed; rely on real env vars
+
     api_key = os.environ.get("GOOGLE_API_KEY")
     if not api_key:
         raise EnvironmentError(
@@ -296,14 +314,27 @@ def embed_and_store(
     client = _make_gemini_client()
 
     # ── Idempotency: find which chunks already exist ─────────────
-    all_ids = [_make_chunk_id(source_name, c.clause_id) for c in chunks]
+    # Append a suffix to duplicate clause_ids so every chunk gets a unique ID
+    _id_counts: dict[str, int] = {}
+    all_ids: list[str] = []
+    for c in chunks:
+        base_id = _make_chunk_id(source_name, c.clause_id)
+        count = _id_counts.get(base_id, 0)
+        _id_counts[base_id] = count + 1
+        all_ids.append(f"{base_id}_{count}" if count > 0 else base_id)
 
     existing_ids: set[str] = set()
-    for i in range(0, len(all_ids), 100):
-        result = collection.get(ids=all_ids[i:i + 100], include=[])
+    unique_ids = list(dict.fromkeys(all_ids))  # preserve order, remove dupes
+    for i in range(0, len(unique_ids), 100):
+        result = collection.get(ids=unique_ids[i:i + 100], include=[])
         existing_ids.update(result["ids"])
 
-    new_chunks = [c for c, cid in zip(chunks, all_ids) if cid not in existing_ids]
+    new_chunks = []
+    new_ids = []
+    for c, cid in zip(chunks, all_ids):
+        if cid not in existing_ids:
+            new_chunks.append(c)
+            new_ids.append(cid)
     skipped = len(chunks) - len(new_chunks)
 
     if skipped:
@@ -331,7 +362,7 @@ def embed_and_store(
     for batch_start in range(0, len(new_chunks), EMBED_BATCH_SIZE):
         batch = new_chunks[batch_start: batch_start + EMBED_BATCH_SIZE]
         texts = [_build_embed_text(c) for c in batch]
-        batch_ids = [_make_chunk_id(source_name, c.clause_id) for c in batch]
+        batch_ids = new_ids[batch_start: batch_start + EMBED_BATCH_SIZE]
 
         vectors = _embed_with_retry(client, texts, task_type="RETRIEVAL_DOCUMENT")
 
@@ -452,8 +483,8 @@ def _log_ingestion(
 if __name__ == "__main__":
     import sys
     import logging
-    from parser import parse_pdf
-    from chunker import chunk_document
+    from pipeline.parser import parse_pdf
+    from pipeline.chunker import chunk_document
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -465,11 +496,11 @@ if __name__ == "__main__":
 
     print(f"\nParsing: {path}")
     parsed = parse_pdf(path)
-    print(f"  → {parsed.total_pages} pages, {parsed.total_word_count} words")
+    print(f"  -> {parsed.total_pages} pages, {parsed.total_word_count} words")
 
     print(f"\nChunking...")
     chunks = chunk_document(parsed, source=path)
-    print(f"  → {len(chunks)} chunks")
+    print(f"  -> {len(chunks)} chunks")
 
     print(f"\nEmbedding + storing...")
     result = embed_and_store(chunks, source_name=parsed.source_name)
@@ -477,7 +508,7 @@ if __name__ == "__main__":
     print(f"\nResult: {result}")
     print(f"  Success: {result.success}")
 
-    from store import get_sqlite_connection, list_ingested_contracts
+    from utils.store import get_sqlite_connection, list_ingested_contracts
     conn = get_sqlite_connection()
     contracts = list_ingested_contracts(conn)
     print(f"\nContracts in metadata store:")

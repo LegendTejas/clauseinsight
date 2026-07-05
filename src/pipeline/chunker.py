@@ -52,11 +52,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF 1.27+ uses pymupdf instead of fitz
 
 # Import the dataclass that parser.py produces
 # (chunker.py is always called after parser.py in the pipeline)
-from parser import ParsedDocument, PageContent
+import sys as _sys
+_src_dir = str(Path(__file__).resolve().parent.parent)
+if _src_dir not in _sys.path:
+    _sys.path.insert(0, _src_dir)
+
+try:
+    from .parser import ParsedDocument, PageContent
+except ImportError:
+    from pipeline.parser import ParsedDocument, PageContent
 
 logger = logging.getLogger(__name__)
 
@@ -846,7 +854,10 @@ def _truncate_heading(heading: str, max_words: int = 12) -> str:
 if __name__ == "__main__":
     import sys
     import logging
-    from parser import parse_pdf
+
+    # Allow running directly: add src/ to path so absolute imports work
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from pipeline.parser import parse_pdf
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
