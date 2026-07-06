@@ -47,7 +47,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from src.retrieval.retriever import RetrievedChunk
+from .retriever import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
