@@ -482,7 +482,6 @@ def _log_ingestion(
 
 if __name__ == "__main__":
     import sys
-    import logging
     from pipeline.parser import parse_pdf
     from pipeline.chunker import chunk_document
 

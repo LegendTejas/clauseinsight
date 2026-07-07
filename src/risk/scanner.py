@@ -72,20 +72,45 @@ from typing import Optional
 from google import genai
 from google.genai import types as genai_types
 
-from src.risk.risk_labels import (
-    CATEGORY_DEFINITIONS,
-    RISK_LEVEL_DEFINITIONS,
-    VALID_CATEGORIES,
-    VALID_RISK_LEVELS,
-    ClauseCategory,
-    RiskLabel,
-    RiskLevel,
-)
-from src.utils.store import (
-    DEFAULT_SQLITE_PATH,
-    get_all_chunks_for_contract,
-    get_sqlite_connection,
-)
+from pathlib import Path as _Path
+import sys as _sys
+_src_dir = str(_Path(__file__).resolve().parent.parent)
+if _src_dir not in _sys.path:
+    _sys.path.insert(0, _src_dir)
+
+try:
+    from .risk_labels import (
+        CATEGORY_DEFINITIONS,
+        RISK_LEVEL_DEFINITIONS,
+        VALID_CATEGORIES,
+        VALID_RISK_LEVELS,
+        ClauseCategory,
+        RiskLabel,
+        RiskLevel,
+    )
+except ImportError:
+    from risk.risk_labels import (
+        CATEGORY_DEFINITIONS,
+        RISK_LEVEL_DEFINITIONS,
+        VALID_CATEGORIES,
+        VALID_RISK_LEVELS,
+        ClauseCategory,
+        RiskLabel,
+        RiskLevel,
+    )
+
+try:
+    from utils.store import (
+        DEFAULT_SQLITE_PATH,
+        get_all_chunks_for_contract,
+        get_sqlite_connection,
+    )
+except ImportError:
+    from src.utils.store import (
+        DEFAULT_SQLITE_PATH,
+        get_all_chunks_for_contract,
+        get_sqlite_connection,
+    )
 
 logger = logging.getLogger(__name__)
 
