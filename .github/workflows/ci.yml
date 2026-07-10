@@ -9,7 +9,7 @@
 #   lint         — ruff (linter) + black (format check)
 #   typecheck    — pyright static type checking  (via npx)
 #   test         — pytest unit tests only (-m "not integration")
-#                  coverage threshold: 60 %  (set in pytest.ini)
+#                  coverage threshold: 40 %  (workflow override)
 #   integration  — pytest integration tests (-m integration)
 #                  uses GOOGLE_API_KEY secret · runs on push to main only
 #                  (skipped on PRs from forks — forks cannot access secrets)
