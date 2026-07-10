@@ -17,6 +17,12 @@ Run with:
 import os
 from dotenv import load_dotenv
 
+import sys
+from pathlib import Path
+root_dir = str(Path(__file__).resolve().parent.parent.parent)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 # Load .env before anything else so all modules see the env vars
 load_dotenv()
 

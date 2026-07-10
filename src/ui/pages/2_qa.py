@@ -9,6 +9,13 @@ with citations and optional inline risk classification.
 
 import streamlit as st
 from dotenv import load_dotenv
+
+import sys
+from pathlib import Path
+root_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 load_dotenv()
 
 import os
