@@ -85,6 +85,13 @@ data/chroma_store/
 data/chroma_db/
 .chroma/
 
+# ── Project-Specific: SQLite metadata database ───────────────────
+# Generated at runtime by the ingestion pipeline — do not commit
+data/metadata.db
+data/metadata.db-shm
+data/metadata.db-wal
+data/chroma/
+
 
 # ── Project-Specific: Dev Embedding Cache ────────────────────────
 # diskcache saves computed Gemini embeddings to disk
