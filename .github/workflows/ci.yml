@@ -1,0 +1,100 @@
+# ──────────────────────────────────────────────────────────────────
+# ClauseInsight — Continuous Integration
+# ──────────────────────────────────────────────────────────────────
+#
+# Triggers: every push to main, every pull request targeting main.
+#
+# Jobs
+# ────
+#   lint    — ruff (linter) + black (format check)
+#   type    — pyright static type checking  (via npx, no pip install)
+#   test    — pytest unit tests only (-m "not integration")
+#             coverage threshold: 60 %  (set in pytest.ini)
+#
+# Integration tests (real Google AI API calls) are excluded here.
+# Run them locally with:  pytest -m integration
+#
+# No secrets are required for unit tests.
+# Add GOOGLE_API_KEY in Settings → Secrets → Actions if you later
+# want a separate integration-test job that calls the real API.
+# ──────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. Lint + format ──────────────────────────────────────────────
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"   # latest stable; 3.14 pre-release not yet on runners
+
+      - name: Install dev dependencies
+        run: pip install ruff black
+
+      - name: ruff — lint
+        run: ruff check src/ tests/
+
+      - name: black — format check
+        run: black --check src/ tests/
+
+  # ── 2. Type check ─────────────────────────────────────────────────
+  typecheck:
+    name: Type check (pyright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pyright
+        run: npx --yes pyright src/
+
+  # ── 3. Unit tests ─────────────────────────────────────────────────
+  test:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests (no API calls)
+        run: |
+          pytest -m "not integration" \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=60
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-html
+          path: htmlcov/
+          retention-days: 7
+
