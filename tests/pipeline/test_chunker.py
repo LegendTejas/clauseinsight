@@ -14,7 +14,6 @@ from src.pipeline.chunker import (
     Chunk,
     detect_format,
     chunk_document,
-    _cosine_similarity_chunker,
     _char_pos_to_page,
     _extract_sub_clauses,
     _truncate_heading,

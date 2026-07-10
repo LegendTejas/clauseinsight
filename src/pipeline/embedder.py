@@ -57,16 +57,13 @@ from google import genai
 from google.genai import types
 
 import sys as _sys
-_src_dir = str(Path(__file__).resolve().parent.parent)
-if _src_dir not in _sys.path:
-    _sys.path.insert(0, _src_dir)
+_root_dir = str(Path(__file__).resolve().parent.parent.parent)
+if _root_dir not in _sys.path:
+    _sys.path.insert(0, _root_dir)
 
-try:
-    from .chunker import Chunk
-except ImportError:
-    from pipeline.chunker import Chunk
+from src.pipeline.chunker import Chunk
 
-from utils.store import (
+from src.utils.store import (
     CHROMA_COLLECTION,
     DEFAULT_CHROMA_DIR,
     DEFAULT_SQLITE_PATH,
@@ -482,8 +479,8 @@ def _log_ingestion(
 
 if __name__ == "__main__":
     import sys
-    from pipeline.parser import parse_pdf
-    from pipeline.chunker import chunk_document
+    from src.pipeline.parser import parse_pdf
+    from src.pipeline.chunker import chunk_document
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -507,7 +504,7 @@ if __name__ == "__main__":
     print(f"\nResult: {result}")
     print(f"  Success: {result.success}")
 
-    from utils.store import get_sqlite_connection, list_ingested_contracts
+    from src.utils.store import get_sqlite_connection, list_ingested_contracts
     conn = get_sqlite_connection()
     contracts = list_ingested_contracts(conn)
     print(f"\nContracts in metadata store:")

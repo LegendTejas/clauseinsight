@@ -58,24 +58,24 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any, Sequence, Mapping
 
 import chromadb
-
+from chromadb.api.types import Where
 from pathlib import Path
 import sys as _sys
-_src_dir = str(Path(__file__).resolve().parent.parent)
-if _src_dir not in _sys.path:
-    _sys.path.insert(0, _src_dir)
+_root_dir = str(Path(__file__).resolve().parent.parent.parent)
+if _root_dir not in _sys.path:
+    _sys.path.insert(0, _root_dir)
 
-from utils.store import (
+from src.utils.store import (
     DEFAULT_CHROMA_DIR,
     DEFAULT_SQLITE_PATH,
     get_chroma_collection,
     get_sqlite_connection,
     get_chunk_by_id,
 )
-from pipeline.embedder import embed_query
+from src.pipeline.embedder import embed_query
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ def retrieve(
             return []
 
         # Build optional where filter for per-contract scoping
-        where_filter = {"source_name": source_name} if source_name else None
+        where_filter: Optional[Where] = {"source_name": source_name} if source_name else None
 
         raw = collection.query(
             query_embeddings=[query_vector],
@@ -223,10 +223,10 @@ def retrieve(
 
         # Unpack ChromaDB result (results are wrapped in a list because
         # ChromaDB supports batched queries — we sent one query, so [0])
-        ids        = raw["ids"][0]
-        embeddings = raw["embeddings"][0]   # list of 768-dim vectors
-        metadatas  = raw["metadatas"][0]
-        distances  = raw["distances"][0]    # cosine distances (0=identical, 2=opposite)
+        ids        = raw.get("ids")[0] if raw.get("ids") else []
+        embeddings = raw.get("embeddings")[0] if raw.get("embeddings") else []
+        metadatas  = raw.get("metadatas")[0] if raw.get("metadatas") else []
+        distances  = raw.get("distances")[0] if raw.get("distances") else []
 
         if not ids:
             logger.info("No candidates returned for query: %r", query[:80])
@@ -306,8 +306,8 @@ def retrieve(
 # ──────────────────────────────────────────────────────────────────
 
 def _mmr_select(
-    query_vector: list[float],
-    candidates: list[tuple[str, list[float], dict, float]],
+    query_vector: Sequence[float],
+    candidates: list[tuple[str, Any, Any, float]],
     top_k: int,
     lambda_: float,
 ) -> list[tuple[str, float]]:
@@ -381,7 +381,7 @@ def _mmr_select(
     return selected
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
+def _cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
     """
     Cosine similarity between two vectors.
 
