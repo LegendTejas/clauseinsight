@@ -6,17 +6,13 @@
 #
 # Jobs
 # ────
-#   lint    — ruff (linter) + black (format check)
-#   type    — pyright static type checking  (via npx, no pip install)
-#   test    — pytest unit tests only (-m "not integration")
-#             coverage threshold: 60 %  (set in pytest.ini)
-#
-# Integration tests (real Google AI API calls) are excluded here.
-# Run them locally with:  pytest -m integration
-#
-# No secrets are required for unit tests.
-# Add GOOGLE_API_KEY in Settings → Secrets → Actions if you later
-# want a separate integration-test job that calls the real API.
+#   lint         — ruff (linter) + black (format check)
+#   typecheck    — pyright static type checking  (via npx)
+#   test         — pytest unit tests only (-m "not integration")
+#                  coverage threshold: 60 %  (set in pytest.ini)
+#   integration  — pytest integration tests (-m integration)
+#                  uses GOOGLE_API_KEY secret · runs on push to main only
+#                  (skipped on PRs from forks — forks cannot access secrets)
 # ──────────────────────────────────────────────────────────────────
 
 name: CI
@@ -98,3 +94,32 @@ jobs:
           path: htmlcov/
           retention-days: 7
 
+  # ── 4. Integration tests (real Google AI API calls) ───────────────
+  integration:
+    name: Integration tests (Google AI)
+    runs-on: ubuntu-latest
+
+    # Only run on direct pushes to main — not on PRs from forks,
+    # which cannot access repository secrets for security reasons.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    # Wait for unit tests to pass before spending API quota
+    needs: [test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run integration tests
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          pytest -m "integration" \
+            --tb=short \
+            -v
