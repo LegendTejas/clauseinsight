@@ -16,11 +16,17 @@ import pytest
 import chromadb
 
 # ── Path fixtures ──────────────────────────────────────────────────
+#
+# NOTE: these three fixtures previously pointed at filenames that don't
+# exist in this repo (e.g. "oneNDA_v2_1.pdf", a flat "ATHENSBANCSHARES..."
+# path). They silently pytest.skip()'d instead of failing, which meant
+# every test depending on them was quietly not running. Paths below are
+# verified against the actual files in legal_contracts/.
 
 @pytest.fixture
 def sample_pdf_path():
     """Path to the oneNDA sample contract — always present in the repo."""
-    path = Path("legal_contracts/oneNDA_v2_1.pdf")
+    path = Path("legal_contracts/oneNDA_v2.pdf")
     if not path.exists():
         pytest.skip(f"Sample PDF not found at {path} — skipping PDF-dependent test")
     return path
@@ -28,8 +34,12 @@ def sample_pdf_path():
 
 @pytest.fixture
 def agency_pdf_path():
-    """Path to the Agency Agreement sample contract."""
-    path = Path("legal_contracts/ATHENSBANCSHARESCORP_11_02_2009-EX-1_2-AGENCY_AGREEMENT___2009.PDF")
+    """Path to the Agency Agreement sample contract (CUAD dataset)."""
+    path = Path(
+        "legal_contracts/CUAD_v1/full_contract_pdf/Part_II/"
+        "Commercial Contracts (Part II-A)/Agency Agreements/"
+        "ATHENSBANCSHARESCORP_AGENCY AGREEMENT.PDF"
+    )
     if not path.exists():
         pytest.skip(f"Agency Agreement PDF not found at {path}")
     return path
@@ -37,10 +47,55 @@ def agency_pdf_path():
 
 @pytest.fixture
 def affiliate_pdf_path():
-    """Path to the Affiliate Agreement sample contract."""
-    path = Path("legal_contracts/CreditcardscomInc_20070810_S-1_EX-10_33_362297_EX-10_33_Affiliate_Agreement.pdf")
+    """Path to the Affiliate Agreement sample contract (CUAD dataset)."""
+    path = Path(
+        "legal_contracts/CUAD_v1/full_contract_pdf/Part_I/"
+        "Affiliate_Agreements/CreditcardscomInc_Affiliate Agreement.pdf"
+    )
     if not path.exists():
         pytest.skip(f"Affiliate Agreement PDF not found at {path}")
+    return path
+
+
+# ── General "any contract" fixture ─────────────────────────────────
+#
+# ClauseInsight is built to work on arbitrary contracts, not just the
+# oneNDA sample. This fixture parametrizes over several structurally
+# different real contracts (a short table-style NDA, a long section-
+# numbered agreement, and a bare-numbered agreement) so pipeline tests
+# can assert generic behavior ("parsing/chunking works on any contract")
+# instead of only ever exercising one document.
+#
+# Format-specific tests (e.g. "oneNDA detects as onenda_table") should
+# still use the individual fixtures above — that's testing a specific
+# format branch on purpose. Use `any_contract_path` when the thing under
+# test is a property that should hold for every contract, regardless of
+# format.
+
+ALL_SAMPLE_CONTRACTS = [
+    Path("legal_contracts/oneNDA_v2.pdf"),
+    Path(
+        "legal_contracts/CUAD_v1/full_contract_pdf/Part_II/"
+        "Commercial Contracts (Part II-A)/Agency Agreements/"
+        "ATHENSBANCSHARESCORP_AGENCY AGREEMENT.PDF"
+    ),
+    Path(
+        "legal_contracts/CUAD_v1/full_contract_pdf/Part_I/"
+        "Affiliate_Agreements/CreditcardscomInc_Affiliate Agreement.pdf"
+    ),
+    Path("legal_contracts/MASTER SERVICES AGREEMENT.pdf"),
+    Path("legal_contracts/Stripe_Services_Agreement_India.pdf"),
+]
+
+
+@pytest.fixture(params=ALL_SAMPLE_CONTRACTS, ids=lambda p: p.name)
+def any_contract_path(request):
+    """Yields each available sample contract in turn. Tests using this
+    fixture run once per contract, so a passing test proves the behavior
+    holds generally rather than for one hardcoded document."""
+    path = request.param
+    if not path.exists():
+        pytest.skip(f"Sample contract not found at {path}")
     return path
 
 

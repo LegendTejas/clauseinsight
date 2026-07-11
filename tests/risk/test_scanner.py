@@ -326,33 +326,42 @@ class TestScanResult:
 @pytest.mark.integration
 @pytest.mark.slow
 class TestScannerIntegration:
-    def test_scan_contract_returns_labels(self, require_api_key):
-        """Requires oneNDA_v2.pdf to already be ingested in SQLite."""
+    def test_scan_contract_returns_labels(self, require_api_key, ingested_contract):
+        """ingested_contract parses+chunks a real sample PDF into
+        tmp_sqlite so this doesn't depend on a pre-existing
+        data/metadata.db (which only exists locally, not on a fresh CI
+        checkout) — and runs once per contract in SCANNER_TEST_CONTRACTS
+        so it isn't coupled to any single document."""
         from src.risk.scanner import scan_contract
-        result = scan_contract("oneNDA_v2.pdf")
+        conn, source_name = ingested_contract
+        result = scan_contract(source_name, conn=conn)
         assert result.total_clauses > 0
         assert all(isinstance(l, RiskLabel) for l in result.labels)
 
-    def test_scan_all_labels_have_valid_risk_level(self, require_api_key):
+    def test_scan_all_labels_have_valid_risk_level(self, require_api_key, ingested_contract):
         from src.risk.scanner import scan_contract
-        result = scan_contract("oneNDA_v2.pdf")
+        conn, source_name = ingested_contract
+        result = scan_contract(source_name, conn=conn)
         valid = set(RiskLevel)
         assert all(l.risk_level in valid for l in result.labels)
 
-    def test_scan_all_labels_have_valid_category(self, require_api_key):
+    def test_scan_all_labels_have_valid_category(self, require_api_key, ingested_contract):
         from src.risk.scanner import scan_contract
-        result = scan_contract("oneNDA_v2.pdf")
+        conn, source_name = ingested_contract
+        result = scan_contract(source_name, conn=conn)
         valid = set(ClauseCategory)
         assert all(l.category in valid for l in result.labels)
 
-    def test_scan_labels_have_non_empty_reason(self, require_api_key):
+    def test_scan_labels_have_non_empty_reason(self, require_api_key, ingested_contract):
         from src.risk.scanner import scan_contract
-        result = scan_contract("oneNDA_v2.pdf")
+        conn, source_name = ingested_contract
+        result = scan_contract(source_name, conn=conn)
         assert all(len(l.reason) > 10 for l in result.labels)
 
-    def test_scan_labels_have_non_empty_action(self, require_api_key):
+    def test_scan_labels_have_non_empty_action(self, require_api_key, ingested_contract):
         from src.risk.scanner import scan_contract
-        result = scan_contract("oneNDA_v2.pdf")
+        conn, source_name = ingested_contract
+        result = scan_contract(source_name, conn=conn)
         assert all(len(l.recommended_action) > 5 for l in result.labels)
 
     def test_scan_clauses_targeted(self, require_api_key, tmp_sqlite, populated_sqlite):

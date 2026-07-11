@@ -239,3 +239,52 @@ class TestChunkDocument:
         formats = {c.format_used for c in chunks}
         # Should be predominantly one format
         assert len(formats) == 1
+
+
+# ── chunk_document generalization tests ────────────────────────────
+#
+# Runs the full parse -> chunk pipeline against every contract in
+# ALL_SAMPLE_CONTRACTS (any_contract_path fixture) so a pass proves the
+# chunker works on contracts in general, not just the oneNDA table
+# format it was originally built around.
+
+class TestChunkDocumentAnyContract:
+    def test_produces_at_least_one_chunk(self, any_contract_path):
+        from src.pipeline.parser import parse_pdf
+        parsed = parse_pdf(any_contract_path)
+        chunks = chunk_document(parsed, source=str(any_contract_path))
+        assert len(chunks) > 0
+        assert all(isinstance(c, Chunk) for c in chunks)
+
+    def test_all_chunks_have_required_fields(self, any_contract_path):
+        from src.pipeline.parser import parse_pdf
+        parsed = parse_pdf(any_contract_path)
+        chunks = chunk_document(parsed, source=str(any_contract_path))
+        for c in chunks:
+            assert c.clause_id, f"chunk missing clause_id: {c}"
+            assert c.page_start >= 1
+            assert c.page_end >= c.page_start
+            assert c.format_used in ("section_n", "bare_n", "onenda_table", "fallback_prose")
+
+    def test_no_empty_chunks(self, any_contract_path):
+        from src.pipeline.parser import parse_pdf
+        parsed = parse_pdf(any_contract_path)
+        chunks = chunk_document(parsed, source=str(any_contract_path))
+        assert all(not c.is_empty for c in chunks)
+
+    def test_page_numbers_within_document_range(self, any_contract_path):
+        from src.pipeline.parser import parse_pdf
+        parsed = parse_pdf(any_contract_path)
+        chunks = chunk_document(parsed, source=str(any_contract_path))
+        for c in chunks:
+            assert 1 <= c.page_start <= parsed.total_pages
+            assert 1 <= c.page_end <= parsed.total_pages
+
+    def test_detect_format_returns_known_type(self, any_contract_path):
+        import fitz
+        from src.pipeline.parser import parse_pdf
+        parsed = parse_pdf(any_contract_path)
+        fitz_doc = fitz.open(str(any_contract_path))
+        fmt = detect_format(parsed, fitz_doc)
+        fitz_doc.close()
+        assert fmt in ("section_n", "bare_n", "onenda_table", "fallback_prose")

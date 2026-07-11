@@ -207,3 +207,39 @@ class TestParsePDF:
         doc = parse_pdf(sample_pdf_path)
         non_empty = [p for p in doc.pages if not p.is_empty]
         assert len(non_empty) > 0
+
+
+# ── parse_pdf generalization tests ─────────────────────────────────
+#
+# Runs against every contract in ALL_SAMPLE_CONTRACTS (any_contract_path
+# fixture in tests/conftest.py) instead of one hardcoded document, so a
+# pass proves parse_pdf works on contracts in general, not just oneNDA.
+
+class TestParsePDFAnyContract:
+    def test_parses_without_error(self, any_contract_path):
+        doc = parse_pdf(any_contract_path)
+        assert isinstance(doc, ParsedDocument)
+
+    def test_has_at_least_one_page(self, any_contract_path):
+        doc = parse_pdf(any_contract_path)
+        assert doc.total_pages >= 1
+
+    def test_source_name_matches_filename(self, any_contract_path):
+        doc = parse_pdf(any_contract_path)
+        assert doc.source_name == any_contract_path.name
+
+    def test_has_nonzero_word_count(self, any_contract_path):
+        doc = parse_pdf(any_contract_path)
+        assert doc.total_word_count > 0
+
+    def test_pages_are_1indexed(self, any_contract_path):
+        doc = parse_pdf(any_contract_path)
+        assert doc.pages[0].page_number == 1
+        assert doc.pages[-1].page_number == doc.total_pages
+
+    def test_at_least_one_page_has_text(self, any_contract_path):
+        """A real (non-scanned) contract should have extractable text
+        on at least one page."""
+        doc = parse_pdf(any_contract_path)
+        non_empty = [p for p in doc.pages if not p.is_empty]
+        assert len(non_empty) > 0

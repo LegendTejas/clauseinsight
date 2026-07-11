@@ -125,4 +125,5 @@ jobs:
         run: |
           pytest -m "integration" \
             --tb=short \
-            -v
+            -v \
+            --no-cov
