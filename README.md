@@ -1,18 +1,21 @@
 # ClauseInsight
+
 > Upload a contract. Understand every clause. Know every risk.
 
-**Author:** Tejas T. P.  
-**Track:** Foundations of Applied Machine Learning  
+**Author:** Tejas T. P.
+**Track:** Foundations of Applied Machine Learning
 
 ---
 
 ## 1. Demo
+
 * **Live Deployment:** [Link to Streamlit Community Cloud - *Coming Soon*]
 * **Video Walkthrough:** [Link to 3-min Loom Video - *Coming Soon*]
 
 ---
 
 ## 2. Problem Statement
+
 People sign contracts they don't understand. A fresh hire signs an employment agreement without realising that Section 9.3 assigns all their side-project IP to the company. A freelancer agrees to an NDA with a 5-year non-compete buried on page 14.
 
 The problem isn't carelessness — it's that legal language is deliberately dense, contracts are long, and most people don't know what questions to ask. ClauseInsight fixes this by doing two things: automatically scanning every clause the moment a contract is uploaded and flagging risky ones without the user asking, and letting the user ask plain-English questions and get answers cited to the exact clause and page number.
@@ -118,23 +121,24 @@ ClauseInsight/
 
 ## 5. Tech Stack
 
-| Component | Choice | Reason |
-|-----------|--------|--------|
-| PDF parsing | PyMuPDF (`fitz`) | Fast, reliable, returns page numbers for citations |
-| Chunking | Custom Python (regex + fallback) | Legal contracts have natural section headers — split by them, not by character count |
-| Embedding model | OpenAI `text-embedding-3-small` | 1536-dim embeddings, strong semantic quality for legal text |
-| Vector store | ChromaDB | Runs locally, zero config, perfect for a single-contract scope |
-| LLM — risk scan | GPT-4o-mini | Structured JSON output (`{risk_level, category, reason}`), fast, low cost |
-| LLM — Q&A | Same model | Grounded generation with citation enforcement in prompt |
-| Frontend | Streamlit | File upload + two-panel UI in pure Python, fast iteration |
-| Deployment | Streamlit Community Cloud | Free, GitHub-connected, live URL |
-| Testing | pytest | Chunker output shape test + risk scanner JSON format test |
+| Component        | Choice                           | Reason                                                                                |
+| ---------------- | -------------------------------- | ------------------------------------------------------------------------------------- |
+| PDF parsing      | PyMuPDF (`fitz`)               | Fast, reliable, returns page numbers for citations                                    |
+| Chunking         | Custom Python (regex + fallback) | Legal contracts have natural section headers — split by them, not by character count |
+| Embedding model  | OpenAI`text-embedding-3-small` | 1536-dim embeddings, strong semantic quality for legal text                           |
+| Vector store     | ChromaDB                         | Runs locally, zero config, perfect for a single-contract scope                        |
+| LLM — risk scan | GPT-4o-mini                      | Structured JSON output (`{risk_level, category, reason}`), fast, low cost           |
+| LLM — Q&A       | Same model                       | Grounded generation with citation enforcement in prompt                               |
+| Frontend         | Streamlit                        | File upload + two-panel UI in pure Python, fast iteration                             |
+| Deployment       | Streamlit Community Cloud        | Free, GitHub-connected, live URL                                                      |
+| Testing          | pytest                           | Chunker output shape test + risk scanner JSON format test                             |
 
 ---
 
 ## 6. Quickstart
 
 ### Prerequisites
+
 * Python 3.11+
 * Git
 * An OpenAI API Key — get one at [platform.openai.com](https://platform.openai.com/)
@@ -142,34 +146,40 @@ ClauseInsight/
 ### Installation & Setup
 
 **a. Clone the repository**
+
 ```bash
 git clone https://github.com/LegendTejas/ClauseInsight.git
 cd ClauseInsight
 ```
 
 **b. Create and activate virtual environment**
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 ```
 
 **c. Install dependencies**
+
 ```bash
 pip install -r requirements.txt
 ```
 
-**d. Environment Variables**  
+**d. Environment Variables**
 Create a `.env` file in the root directory and add your API key:
+
 ```
 OPENAI_API_KEY=your_api_key_here
 ```
 
 ### Run the Application
+
 ```bash
 streamlit run app/main.py
 ```
 
 ### Run Tests
+
 ```bash
 pytest tests/
 ```
@@ -186,9 +196,9 @@ This system does not rely on a pre-loaded external dataset. The data source is e
 
 Technical trade-offs and decisions made during development are documented here:
 
-- ADR-001: PDF Parsing Tool Selection  
-- ADR-002: Clause-Aware Chunking Strategy  
-- ADR-003: Choice of Vector Store  
+- ADR-001: PDF Parsing Tool Selection
+- ADR-002: Clause-Aware Chunking Strategy
+- ADR-003: Choice of Vector Store
 
 ---
 
@@ -201,17 +211,14 @@ Standard RAG systems are reactive. To go beyond the minimum requirements, I impl
 ## 10. Known Limitations
 
 - **Scanned Images**: PDFs without a text layer (scanned images) will return empty strings via PyMuPDF. Optical Character Recognition (OCR) is not currently implemented.
-
 - **Formatting Variances**: Contracts entirely lacking standard section headers may default to a fallback paragraph-splitting chunker, slightly reducing citation accuracy.
-
 - **Cold Starts**: The Streamlit Community Cloud deployment may experience a 15-30 second cold start if the app has been inactive.
-
 - **Embedding Dimensions**: `text-embedding-3-small` produces 1536-dimensional vectors. Do not mix embeddings from different models in the same ChromaDB collection, as dimension mismatches will cause errors. If you're upgrading from an earlier Gemini-based version of this project, delete your local `chroma_db/` (or `data/chroma/`) directory and re-ingest your contracts — old 768-dim vectors are not compatible with the new 1536-dim model.
-
 - **OpenAI Rate Limits & Cost**: Unlike the free-tier Gemini setup this project started with, OpenAI usage is billed per request. For large contracts with many clauses, the risk scanner batches requests (batch size 5) to keep call counts reasonable, but be mindful of usage if scanning many large contracts in a short period.
 
 ---
 
 ## 11. License & Acknowledgements
-- License: MIT  
+
+- License: MIT
 - **Acknowledgements**: Developed as part of the 2nd Year B.Tech CSE-AIDE Summer Internship (2026).
