@@ -255,10 +255,10 @@ def populated_sqlite(tmp_sqlite, sample_chunks):
 @pytest.fixture
 def require_api_key():
     """
-    Skip integration tests if GOOGLE_API_KEY is not set.
+    Skip integration tests if OPENAI_API_KEY is not set.
     Use this fixture in any test decorated with @pytest.mark.integration.
     """
-    key = os.environ.get("GOOGLE_API_KEY")
+    key = os.environ.get("OPENAI_API_KEY")
     if not key:
-        pytest.skip("GOOGLE_API_KEY not set — skipping integration test")
+        pytest.skip("OPENAI_API_KEY not set — skipping integration test")
     return key

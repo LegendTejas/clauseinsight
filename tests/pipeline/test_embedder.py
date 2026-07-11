@@ -107,7 +107,8 @@ class TestEmbedResult:
 
 class TestConstants:
     def test_embedding_dim(self):
-        assert EMBEDDING_DIM == 768
+        """Verify EMBEDDING_DIM matches the current model (OpenAI text-embedding-3-small)."""
+        assert EMBEDDING_DIM == 1536
 
     def test_batch_size_reasonable(self):
         assert 1 <= EMBED_BATCH_SIZE <= 50

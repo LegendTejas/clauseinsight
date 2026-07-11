@@ -1,4 +1,4 @@
-﻿## ClauseInsight — System Architecture
+## ClauseInsight — System Architecture
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": { "background": "#ffffff", "primaryColor": "#ffffff", "primaryTextColor": "#000000", "lineColor": "#000000", "fontFamily": "Inter, sans-serif"}}}%%
@@ -15,7 +15,7 @@ flowchart TD
     subgraph INGEST["📥 Ingestion Pipeline"]
         PARSER["parser.py<br/>PyMuPDF<br/>Text + page numbers"]
         CHUNKER["chunker.py<br/>Format detector → strategy dispatch<br/>section_n · bare_n · onenda_table · fallback_prose"]
-        EMBEDDER["embedder.py<br/>Google text-embedding-004<br/>768-dim vectors · idempotent upsert"]
+        EMBEDDER["embedder.py<br/>OpenAI text-embedding-3-small<br/>1536-dim vectors · idempotent upsert"]
     end
 
     subgraph STORE["🗄️ Data Layer — utils/store.py"]
@@ -34,9 +34,9 @@ flowchart TD
         SCANNER["scanner.py<br/>Batched LLM calls · batch=5<br/>JSON output parsing · retry logic<br/>Output: ScanResult · list[RiskLabel]"]
     end
 
-    subgraph EXT_API["🌐 External APIs — Google AI"]
-        OAI_E["Google Generative AI<br/>text-embedding-004<br/>768-dim vectors"]
-        OAI_L["Google Generative AI<br/>gemini-2.0-flash<br/>Q and A generation · Risk classification"]
+    subgraph EXT_API["🌐 External APIs — OpenAI"]
+        OAI_E["OpenAI API<br/>text-embedding-3-small<br/>1536-dim vectors"]
+        OAI_L["OpenAI API<br/>gpt-4o-mini<br/>Q and A generation · Risk classification"]
     end
 
     subgraph UTILS["🛠️ Utilities"]
@@ -131,8 +131,8 @@ flowchart TD
 |---|---|---|
 | **UI structure** | Single `app.py` with 3 tabs | Multipage app: `app.py` + `pages/1_upload.py`, `2_qa.py`, `3_scanner.py` |
 | **Compare tab** | Separate `comparator.py` with V1/V2 collections | **Removed** — single shared `clauseinsight_chunks` collection |
-| **Embedding model** | OpenAI `text-embedding-3-small` (1536-dim) | Google `text-embedding-004` (768-dim) |
-| **LLM** | OpenAI `gpt-4o-mini` | Google `gemini-2.0-flash` |
+| **Embedding model** | Google `text-embedding-004` (768-dim) | OpenAI `text-embedding-3-small` (1536-dim) |
+| **LLM** | Google `gemini-2.0-flash` | OpenAI `gpt-4o-mini` |
 | **Vector store** | Two collections (`contract_v1`, `contract_v2`) | One collection with `source_name` metadata filter |
 | **Data layer** | ChromaDB only via `vectorstore.py` | Dual store: ChromaDB (vectors) + SQLite (full text + metadata) via `utils/store.py` |
 | **Retrieval** | Plain similarity search, top-3 | Two-stage MMR pipeline: 15 candidates → rerank → top-5 |

@@ -14,18 +14,13 @@ pymupdf==1.27.2.3
 # No external account needed — runs on your machine
 chromadb==1.5.9
 
-# ── Gemini SDK ───────────────────────────────────────────────────
-# google-genai: the CURRENT recommended Gemini SDK (v2+)
-# Do NOT use google-generativeai — it is deprecated as of 2025
-# Used for: text-embedding-004 (embeddings) + Gemini 2.0 Flash (LLM)
-# Free tier: 15 req/min, 1,500 req/day — more than enough for this project
+# ── OpenAI SDK ───────────────────────────────────────────────────
+# openai: the CURRENT recommended OpenAI SDK
+# Usage:
+#   from openai import OpenAI
+#   client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 #
-# Basic usage:
-#   from google import genai
-#   client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-#   client.models.generate_content(model="gemini-2.0-flash", ...)
-#   client.models.embed_content(model="text-embedding-004", ...)
-google-genai==2.10.0
+openai>=1.12.0
 
 # ── Rate Limit Handling ──────────────────────────────────────────
 # Gemini free tier: 15 requests per minute cap

@@ -69,8 +69,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from google import genai
-from google.genai import types as genai_types
+import openai
 
 from pathlib import Path as _Path
 import sys as _sys
@@ -101,7 +100,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ──────────────────────────────────────────────────────────────────
 
-LLM_MODEL = os.environ.get("LLM_MODEL", "gemini-2.0-flash")
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 LLM_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", "0.2"))
 
 # Clauses per LLM call — sweet spot between speed and accuracy
@@ -214,7 +213,7 @@ def _build_user_prompt(batch: list[dict]) -> str:
     lines = ["Classify the following contract clauses:\n"]
     for i, chunk in enumerate(batch, start=1):
         lines.append(f"--- CLAUSE {i}: {chunk['clause_id']} ---")
-        lines.append(chunk.get("full_text", chunk.get("text", "")).strip())
+        lines.append((chunk.get("full_text") or chunk.get("text") or "").strip())
         lines.append("")  # blank line between clauses
     return "\n".join(lines)
 
@@ -223,34 +222,41 @@ def _build_user_prompt(batch: list[dict]) -> str:
 # LLM call + response parsing
 # ──────────────────────────────────────────────────────────────────
 
-def _make_gemini_client() -> genai.Client:
-    api_key = os.environ.get("GOOGLE_API_KEY")
+def _make_openai_client() -> openai.OpenAI:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise EnvironmentError(
-            "GOOGLE_API_KEY environment variable is not set."
+            "OPENAI_API_KEY environment variable is not set."
         )
-    return genai.Client(api_key=api_key)
+    return openai.OpenAI(api_key=api_key)
 
 
 def _call_llm(
-    client: genai.Client,
+    client: openai.OpenAI,
     system_prompt: str,
     user_prompt: str,
 ) -> str:
     """
-    Call Gemini and return the raw response text.
+    Call OpenAI and return the raw response text.
     Raises on API errors — caller handles retries.
     """
-    response = client.models.generate_content(
+    response = client.chat.completions.create(
         model=LLM_MODEL,
-        contents=user_prompt,
-        config=genai_types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=LLM_TEMPERATURE,
-            max_output_tokens=2048,
-        ),
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=LLM_TEMPERATURE,
+        max_tokens=2048,
     )
-    return response.text
+    if not response.choices or not response.choices[0].message.content:
+        raise ValueError("LLM returned an empty response (no text).")
+    return response.choices[0].message.content
 
 
 def _parse_llm_response(
@@ -370,7 +376,7 @@ def _fallback_labels(batch: list[dict], source_name: str) -> list[RiskLabel]:
 # ──────────────────────────────────────────────────────────────────
 
 def _scan_batch(
-    client: genai.Client,
+    client: openai.OpenAI,
     batch: list[dict],
     source_name: str,
     system_prompt: str,
@@ -489,7 +495,7 @@ def scan_contract(
             "'%s': scanning all %d clauses", source_name, len(chunks_to_scan)
         )
 
-    client = _make_gemini_client()
+    client = _make_openai_client()
     system_prompt = _build_system_prompt()
     all_labels: list[RiskLabel] = []
 
@@ -570,7 +576,7 @@ def scan_clauses(
     if not chunks_to_scan:
         return []
 
-    client = _make_gemini_client()
+    client = _make_openai_client()
     system_prompt = _build_system_prompt()
     labels: list[RiskLabel] = []
 
@@ -585,7 +591,7 @@ def scan_clauses(
 
 # ──────────────────────────────────────────────────────────────────
 # Smoke test:
-#   GOOGLE_API_KEY=your_key python src/risk/scanner.py oneNDA_v2.pdf
+#   OPENAI_API_KEY=your_key python src/risk/scanner.py oneNDA_v2.pdf
 # ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

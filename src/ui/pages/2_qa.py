@@ -19,8 +19,7 @@ if root_dir not in sys.path:
 load_dotenv()
 
 import os
-from google import genai
-from google.genai import types as genai_types
+import openai
 
 from src.utils.logger import get_logger
 from src.utils.store import (
@@ -87,12 +86,12 @@ with st.sidebar:
 
 # ── LLM answer generation ──────────────────────────────────────────
 def generate_answer(context_text: str, query: str) -> str:
-    """Call Gemini to generate a grounded answer from context."""
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    """Call OpenAI to generate a grounded answer from context."""
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        return "❌ GOOGLE_API_KEY not set. Check your .env file."
+        return "❌ OPENAI_API_KEY not set. Check your .env file."
 
-    client = genai.Client(api_key=api_key)
+    client = openai.OpenAI(api_key=api_key)
 
     system_prompt = """You are a legal contract analyst. Answer the user's question
 based ONLY on the contract clauses provided. Be precise and cite the specific clause.
@@ -108,16 +107,18 @@ Rules:
     user_prompt = f"{context_text}\n\nQUESTION: {query}\n\nAnswer based only on the clauses above:"
 
     try:
-        response = client.models.generate_content(
-            model=os.environ.get("LLM_MODEL", "gemini-2.0-flash"),
-            contents=user_prompt,
-            config=genai_types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=float(os.environ.get("LLM_TEMPERATURE", "0.2")),
-                max_output_tokens=int(os.environ.get("LLM_MAX_TOKENS", "1024")),
-            ),
+        response = client.chat.completions.create(
+            model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=float(os.environ.get("LLM_TEMPERATURE", "0.2")),
+            max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "1024")),
         )
-        return response.text
+        if not response.choices or not response.choices[0].message.content:
+            return "❌ LLM returned an empty response."
+        return response.choices[0].message.content
     except Exception as exc:
         logger.error("LLM call failed: %s", exc)
         return f"❌ Error generating answer: {exc}"

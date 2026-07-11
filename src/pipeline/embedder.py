@@ -53,8 +53,7 @@ from typing import Optional
 
 import chromadb
 import sqlite3
-from google import genai
-from google.genai import types
+import openai
 
 import sys as _sys
 _root_dir = str(Path(__file__).resolve().parent.parent.parent)
@@ -78,11 +77,10 @@ logger = logging.getLogger(__name__)
 # Embedding constants
 # ──────────────────────────────────────────────────────────────────
 
-EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_MODEL = "text-embedding-3-small"
 
-# gemini-embedding-001 native dimension is 3072.
-# We use output_dimensionality=768 for efficiency — legal text works well at this size.
-EMBEDDING_DIM = 768
+# text-embedding-3-small native dimension is 1536.
+EMBEDDING_DIM = 1536
 
 # Google free tier: 1,500 req/min.
 # Batch of 20 = ~8 batches per typical contract, well within limits.
@@ -129,15 +127,14 @@ class EmbedResult:
 # Gemini client
 # ──────────────────────────────────────────────────────────────────
 
-def _make_gemini_client() -> genai.Client:
+def _make_openai_client() -> openai.OpenAI:
     """
-    Create the Google GenAI client from GOOGLE_API_KEY env var.
+    Create the OpenAI client from OPENAI_API_KEY env var.
 
     Loads .env file first (if python-dotenv is installed) so keys
     defined there are available via os.environ.
 
-    Raises a clear EnvironmentError if the key is missing — better
-    than letting the first API call fail with a cryptic auth error.
+    Raises a clear EnvironmentError if the key is missing.
     """
     try:
         from dotenv import load_dotenv
@@ -145,13 +142,13 @@ def _make_gemini_client() -> genai.Client:
     except ImportError:
         pass  # python-dotenv not installed; rely on real env vars
 
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise EnvironmentError(
-            "GOOGLE_API_KEY environment variable is not set. "
-            "Get a key at https://ai.google.dev and set it before running."
+            "OPENAI_API_KEY environment variable is not set. "
+            "Get a key at https://platform.openai.com/ and set it before running."
         )
-    return genai.Client(api_key=api_key)
+    return openai.OpenAI(api_key=api_key)
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -194,30 +191,22 @@ def _make_chunk_id(source_name: str, clause_id: str) -> str:
 # ──────────────────────────────────────────────────────────────────
 
 def _embed_with_retry(
-    client: genai.Client,
+    client: openai.OpenAI,
     texts: list[str],
-    task_type: str,
 ) -> list[list[float]] | None:
     """
     Embed a batch of texts with exponential backoff on retriable errors.
 
-    Handles both RETRIEVAL_DOCUMENT (indexing) and RETRIEVAL_QUERY
-    (query time) — task_type is passed by the caller.
-
-    Returns list of 768-dim float vectors, or None if all retries failed.
+    Returns list of 1536-dim float vectors, or None if all retries failed.
     """
     delay = RETRY_BASE_DELAY
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = client.models.embed_content(
+            response = client.embeddings.create(
                 model=EMBEDDING_MODEL,
-                contents=texts,
-                config=types.EmbedContentConfig(
-                    task_type=task_type,
-                    output_dimensionality=EMBEDDING_DIM,
-                ),
+                input=texts,
             )
-            return [emb.values for emb in response.embeddings]
+            return [data.embedding for data in response.data]
 
         except Exception as exc:
             err_str = str(exc).lower()
@@ -247,11 +236,6 @@ def embed_query(query_text: str) -> list[float]:
     """
     Embed a single user query for similarity search.
 
-    Uses RETRIEVAL_QUERY task type — intentionally different from the
-    RETRIEVAL_DOCUMENT task type used at index time. Google's model is
-    trained on (query, document) pairs so the two types optimise the
-    embedding space for the asymmetric retrieval direction.
-
     Args:
         query_text: The user's plain-English question.
 
@@ -261,12 +245,12 @@ def embed_query(query_text: str) -> list[float]:
     Raises:
         RuntimeError: If embedding fails after all retries.
     """
-    client = _make_gemini_client()
-    vectors = _embed_with_retry(client, [query_text], task_type="RETRIEVAL_QUERY")
+    client = _make_openai_client()
+    vectors = _embed_with_retry(client, [query_text])
     if vectors is None:
         raise RuntimeError(
             f"Failed to embed query after {MAX_RETRIES} retries. "
-            "Check GOOGLE_API_KEY and network connectivity."
+            "Check OPENAI_API_KEY and network connectivity."
         )
     return vectors[0]
 
@@ -308,7 +292,7 @@ def embed_and_store(
     if conn is None:
         conn = get_sqlite_connection(db_path)
 
-    client = _make_gemini_client()
+    client = _make_openai_client()
 
     # ── Idempotency: find which chunks already exist ─────────────
     # Append a suffix to duplicate clause_ids so every chunk gets a unique ID
@@ -361,7 +345,7 @@ def embed_and_store(
         texts = [_build_embed_text(c) for c in batch]
         batch_ids = new_ids[batch_start: batch_start + EMBED_BATCH_SIZE]
 
-        vectors = _embed_with_retry(client, texts, task_type="RETRIEVAL_DOCUMENT")
+        vectors = _embed_with_retry(client, texts)
 
         if vectors is None:
             logger.error(
@@ -474,7 +458,7 @@ def _log_ingestion(
 
 # ──────────────────────────────────────────────────────────────────
 # Smoke test:
-#   GOOGLE_API_KEY=your_key python src/pipeline/embedder.py path/to/contract.pdf
+#   OPENAI_API_KEY=your_key python src/pipeline/embedder.py path/to/contract.pdf
 # ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -485,7 +469,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     if len(sys.argv) < 2:
-        print("Usage: GOOGLE_API_KEY=<key> python src/pipeline/embedder.py <path_to_pdf>")
+        print("Usage: OPENAI_API_KEY=<key> python src/pipeline/embedder.py <path_to_pdf>")
         sys.exit(1)
 
     path = sys.argv[1]

@@ -9,8 +9,8 @@ scan_contract() found zero chunks and the assertion failed.
 
 scan_contract() only reads `full_text` from SQLite — it never touches
 ChromaDB/embeddings — so we can satisfy it cheaply by parsing + chunking
-a real sample PDF straight into tmp_sqlite, with zero Gemini API calls
-spent on ingestion. The only Gemini calls in these tests come from the
+a real sample PDF straight into tmp_sqlite, with zero OpenAI API calls
+spent on ingestion. The only OpenAI calls in these tests come from the
 actual scan_contract()/scan_clauses() call itself.
 
 The fixture is parametrized over two structurally different contracts
@@ -18,7 +18,7 @@ The fixture is parametrized over two structurally different contracts
 than one hardcoded oneNDA file, so passing tests demonstrate the scanner
 works on contracts in general. It's capped at two — not all five in
 ALL_SAMPLE_CONTRACTS — because each parametrization multiplies the
-number of real Gemini API calls these tests make, and that quota is
+number of real OpenAI API calls these tests make, and that quota is
 already tight (see the CI RESOURCE_EXHAUSTED warnings).
 """
 
