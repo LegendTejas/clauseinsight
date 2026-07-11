@@ -1,7 +1,7 @@
 # ════════════════════════════════════════════════════════════════
 # ClauseInsight — requirements.txt
 # Python 3.11+  |  pip install -r requirements.txt
-# API: Gemini (free tier via aistudio.google.com)
+# API: OpenAI (billed — platform.openai.com)
 # ════════════════════════════════════════════════════════════════
 
 # ── PDF Parsing ──────────────────────────────────────────────────
@@ -23,16 +23,15 @@ chromadb==1.5.9
 openai>=1.12.0
 
 # ── Rate Limit Handling ──────────────────────────────────────────
-# Gemini free tier: 15 requests per minute cap
-# The risk scanner loops over every clause — on a 30-clause contract
-# it will hit the rate limit without retry logic.
+# The risk scanner loops over every clause — on a large contract
+# it can hit OpenAI rate limits without retry logic.
 # tenacity wraps any function with automatic exponential backoff:
 #   @retry(wait=wait_exponential(multiplier=1, min=4, max=60))
-#   def call_gemini(...): ...
+#   def call_llm(...): ...
 tenacity==9.1.4
 
 # ── Environment and Config ────────────────────────────────────────
-# Loads GEMINI_API_KEY from .env file into os.environ
+# Loads OPENAI_API_KEY from .env file into os.environ
 # NEVER hardcode API keys — always use this
 python-dotenv==1.2.2
 
@@ -51,14 +50,16 @@ pandas==3.0.3
 
 # ── Dev Caching ───────────────────────────────────────────────────
 # Caches embeddings to disk during development
-# Without this: every code change re-calls the Gemini API
+# Without this: every code change re-calls the (billed) OpenAI API
 # With this: embeddings are computed once and reused until you clear cache
-# Especially useful since text-embedding-004 has a 1,500 req/day cap
+# Worth keeping since every re-embed costs real money, not just time
 diskcache==5.6.3
 
 # ── Local Embedding Fallback (OPTIONAL) ───────────────────────────
-# Uncomment ONLY if Gemini API is unavailable or rate-limited
-# Model: all-MiniLM-L6-v2 (768-dim — matches text-embedding-004 dim)
+# Uncomment ONLY if the OpenAI API is unavailable or you want a
+# free/offline fallback for embeddings.
+# Model: all-MiniLM-L6-v2 (384-dim — does NOT match text-embedding-3-small's
+# 1536-dim; you cannot mix these in the same ChromaDB collection)
 # WARNING: pulls ~1 GB torch dependency
 # sentence-transformers==5.6.0
 

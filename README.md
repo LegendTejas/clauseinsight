@@ -81,7 +81,7 @@ ClauseInsight/
 │   └── CUAD_v1/
 │       └── full_contract_pdf
 │
-├── .env                             🔲 — Environment variables (GOOGLE_API_KEY — gitignored)
+├── .env                             🔲 — Environment variables (OPENAI_API_KEY — gitignored)
 ├── .gitignore  
 ├── pyproject.toml                   🔲 — Project metadata and dependencies (uv manages dependencies)
 └── README.md  
@@ -99,7 +99,7 @@ ClauseInsight/
 [Clause chunker — section headers]           |
       |                                      |
       +---------> [Embedding model] <--------+
-                  (text-embedding-004)
+                  (text-embedding-3-small)
                          |
                     [ChromaDB]
                     (vector store)
@@ -122,9 +122,9 @@ ClauseInsight/
 |-----------|--------|--------|
 | PDF parsing | PyMuPDF (`fitz`) | Fast, reliable, returns page numbers for citations |
 | Chunking | Custom Python (regex + fallback) | Legal contracts have natural section headers — split by them, not by character count |
-| Embedding model | Google `text-embedding-004` | Free via Gemini API, 768-dim embeddings, strong semantic quality for legal text |
+| Embedding model | OpenAI `text-embedding-3-small` | 1536-dim embeddings, strong semantic quality for legal text |
 | Vector store | ChromaDB | Runs locally, zero config, perfect for a single-contract scope |
-| LLM — risk scan | Gemini 2.0 Flash | Structured JSON output (`{risk_level, category, reason}`), free tier (1,500 req/day), fast |
+| LLM — risk scan | GPT-4o-mini | Structured JSON output (`{risk_level, category, reason}`), fast, low cost |
 | LLM — Q&A | Same model | Grounded generation with citation enforcement in prompt |
 | Frontend | Streamlit | File upload + two-panel UI in pure Python, fast iteration |
 | Deployment | Streamlit Community Cloud | Free, GitHub-connected, live URL |
@@ -137,7 +137,7 @@ ClauseInsight/
 ### Prerequisites
 * Python 3.11+
 * Git
-* A Gemini API Key — get one free at [aistudio.google.com](https://aistudio.google.com)
+* An OpenAI API Key — get one at [platform.openai.com](https://platform.openai.com/)
 
 ### Installation & Setup
 
@@ -161,7 +161,7 @@ pip install -r requirements.txt
 **d. Environment Variables**  
 Create a `.env` file in the root directory and add your API key:
 ```
-GEMINI_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_api_key_here
 ```
 
 ### Run the Application
@@ -206,9 +206,9 @@ Standard RAG systems are reactive. To go beyond the minimum requirements, I impl
 
 - **Cold Starts**: The Streamlit Community Cloud deployment may experience a 15-30 second cold start if the app has been inactive.
 
-- **Embedding Dimensions**: `text-embedding-004` produces 768-dimensional vectors. Do not mix embeddings from different models in the same ChromaDB collection, as dimension mismatches will cause errors.
+- **Embedding Dimensions**: `text-embedding-3-small` produces 1536-dimensional vectors. Do not mix embeddings from different models in the same ChromaDB collection, as dimension mismatches will cause errors. If you're upgrading from an earlier Gemini-based version of this project, delete your local `chroma_db/` (or `data/chroma/`) directory and re-ingest your contracts — old 768-dim vectors are not compatible with the new 1536-dim model.
 
-- **Gemini Free Tier Rate Limits**: The free tier allows 15 requests per minute and 1,500 requests per day. For large contracts with many clauses, the risk scanner may need to batch requests with short delays to stay within limits.
+- **OpenAI Rate Limits & Cost**: Unlike the free-tier Gemini setup this project started with, OpenAI usage is billed per request. For large contracts with many clauses, the risk scanner batches requests (batch size 5) to keep call counts reasonable, but be mindful of usage if scanning many large contracts in a short period.
 
 ---
 

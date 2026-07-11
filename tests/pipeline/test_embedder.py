@@ -2,7 +2,7 @@
 Tests for src/pipeline/embedder.py
 
 Unit tests: test helpers that don't need API calls.
-Integration tests: marked with @pytest.mark.integration, require GOOGLE_API_KEY.
+Integration tests: marked with @pytest.mark.integration, require OPENAI_API_KEY.
 """
 
 from __future__ import annotations

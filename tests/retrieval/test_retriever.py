@@ -2,7 +2,7 @@
 Tests for src/retrieval/retriever.py and src/retrieval/context_builder.py
 
 Unit tests: pure algorithm logic — cosine similarity, MMR, context assembly.
-Integration tests: require embedded contracts in ChromaDB (GOOGLE_API_KEY needed).
+Integration tests: require embedded contracts in ChromaDB (OPENAI_API_KEY needed).
 """
 
 from __future__ import annotations

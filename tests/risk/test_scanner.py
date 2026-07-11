@@ -2,7 +2,7 @@
 Tests for src/risk/risk_labels.py and src/risk/scanner.py
 
 Unit tests: enum validation, RiskLabel logic, parse/prompt helpers.
-Integration tests: real Gemini API calls marked with @pytest.mark.integration.
+Integration tests: real OpenAI API calls marked with @pytest.mark.integration.
 """
 
 from __future__ import annotations

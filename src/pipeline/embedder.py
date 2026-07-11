@@ -3,7 +3,7 @@ ClauseInsight — Embedder
 =========================
 
 Takes the list[Chunk] produced by chunker.py, embeds each chunk using
-Google's text-embedding-004 model, and persists everything into two
+OpenAI's text-embedding-3-small model, and persists everything into two
 synchronized stores via utils/store.py:
 
   1. ChromaDB  — vector store for similarity search at query time
@@ -14,8 +14,7 @@ WHY EMBEDDER ONLY WRITES
 All connection management, schema creation, and read-side query helpers
 live in utils/store.py. embedder.py is purely a write-side module:
   - Takes chunks → produces vectors → persists to both stores
-  - Owns all Gemini API call logic (both RETRIEVAL_DOCUMENT and
-    RETRIEVAL_QUERY task types live here so API calls stay in one place)
+  - Owns all OpenAI embedding API call logic in one place
   - Owns retry/backoff/rate-limit handling
 
 EMBEDDING DESIGN
@@ -24,13 +23,13 @@ We embed: heading + full clause text as a single string.
   - heading gives the model context about what kind of clause this is
   - full text gives retrieval the semantic content to match against
 
-task_type differentiation (Google's recommendation):
-  - Indexing:  RETRIEVAL_DOCUMENT — optimises for being searched against
-  - Querying:  RETRIEVAL_QUERY   — used in embed_query(), called by retriever.py
+NOTE: unlike Gemini, OpenAI's embeddings API has no separate task_type
+for indexing vs. querying — the same embedding call is used for both
+document chunks (embed_and_store) and user queries (embed_query()).
 
-RATE LIMIT HANDLING
---------------------
-text-embedding-004 free tier: 1,500 requests/minute.
+RATE LIMIT & COST HANDLING
+----------------------------
+OpenAI has no free tier — usage is billed per token.
 We batch up to EMBED_BATCH_SIZE chunks per API call with inter-batch
 sleep. Rate limit / transient errors get exponential backoff up to
 MAX_RETRIES before a batch is marked failed and the run continues.
@@ -82,8 +81,8 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 # text-embedding-3-small native dimension is 1536.
 EMBEDDING_DIM = 1536
 
-# Google free tier: 1,500 req/min.
-# Batch of 20 = ~8 batches per typical contract, well within limits.
+# Batch of 20 = ~8 batches per typical contract — keeps request count
+# (and therefore cost/latency) reasonable.
 EMBED_BATCH_SIZE = 20
 
 # Seconds to sleep between batches.
@@ -124,7 +123,7 @@ class EmbedResult:
 
 
 # ──────────────────────────────────────────────────────────────────
-# Gemini client
+# OpenAI client
 # ──────────────────────────────────────────────────────────────────
 
 def _make_openai_client() -> openai.OpenAI:

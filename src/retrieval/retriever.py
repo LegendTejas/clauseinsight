@@ -328,7 +328,7 @@ def _mmr_select(
     by the previously selected chunks.
 
     Args:
-        query_vector: The embedded query (768-dim float list).
+        query_vector: The embedded query (1536-dim float list).
         candidates:   List of (chunk_id, embedding, metadata, similarity).
                       similarity is pre-computed cosine sim to query.
         top_k:        Number of chunks to select.
@@ -387,7 +387,7 @@ def _cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
 
     Implemented from scratch rather than using numpy to keep this module
     dependency-light — retriever.py already depends on chromadb and
-    google-genai, no need to add numpy just for this one operation.
+    openai, no need to add numpy just for this one operation.
 
     Returns a value in [-1, 1]. In practice for text embeddings from
     the same model, values are in [0, 1] since text embeddings are
@@ -450,7 +450,7 @@ def retrieve_for_contract(
 
 # ──────────────────────────────────────────────────────────────────
 # Smoke test:
-#   GOOGLE_API_KEY=your_key python src/retrieval/retriever.py
+#   OPENAI_API_KEY=your_key python src/retrieval/retriever.py
 # ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

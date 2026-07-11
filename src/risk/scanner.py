@@ -3,7 +3,7 @@ ClauseInsight — Risk Scanner
 ==============================
 
 Classifies every clause in a contract as LOW / MEDIUM / HIGH risk
-using Gemini 2.0 Flash, producing structured RiskLabel objects that
+using GPT-4o-mini, producing structured RiskLabel objects that
 the Streamlit dashboard displays.
 
 PIPELINE POSITION
@@ -49,12 +49,13 @@ Three levels:
   3. Complete batch failure after retries → emit RiskLabel with
      UNKNOWN risk level so the UI can flag it rather than silently skip
 
-RATE LIMITS
-------------
-Gemini 2.0 Flash free tier: 15 requests/minute.
+RATE LIMITS & COST
+-------------------
+OpenAI usage is billed per request/token — there's no free tier.
 With SCAN_BATCH_SIZE=5 and INTER_SCAN_SLEEP=4.0s between batches,
-a 33-chunk contract makes 7 API calls over ~28 seconds — well within limits.
-A 161-chunk contract makes ~33 calls over ~2 minutes.
+a 33-chunk contract makes 7 API calls over ~28 seconds.
+A 161-chunk contract makes ~33 calls over ~2 minutes. Keep contract
+volume in mind since each batch call consumes billed tokens.
 """
 
 from __future__ import annotations
@@ -442,7 +443,7 @@ def scan_contract(
     Scan all clauses of a contract and classify each by risk level.
 
     Reads clause text from SQLite (where full_text is stored), sends
-    batches to Gemini, and returns a ScanResult with all RiskLabels.
+    batches to the LLM, and returns a ScanResult with all RiskLabels.
 
     Args:
         source_name:      Contract filename — must match what was ingested.

@@ -56,13 +56,13 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ──────────────────────────────────────────────────────────────────
 
-# Rough characters-per-token estimate for Gemini models.
-# Gemini uses SentencePiece tokenisation — legal text averages ~4
-# chars/token (slightly higher than general English due to defined terms).
+# Rough characters-per-token estimate for GPT-4o-mini (BPE/tiktoken
+# tokenisation) — legal text averages ~4 chars/token, slightly higher
+# than general English due to defined terms.
 CHARS_PER_TOKEN = 4
 
 # Default token budget for the context block injected into an LLM prompt.
-# gemini-2.0-flash context window: 1,048,576 tokens.
+# gpt-4o-mini context window: 128,000 tokens.
 # We reserve a conservative 6,000 tokens for context — leaves plenty
 # of room for the system prompt, user question, and LLM response.
 DEFAULT_TOKEN_BUDGET = 6_000
@@ -178,7 +178,7 @@ def build_context(
                              retriever.retrieve_for_contract().
         query:               The original user query (stored in output).
         token_budget:        Max tokens for the context_text block.
-                             Default 6,000 — safe for gemini-2.0-flash.
+                             Default 6,000 — safe for gpt-4o-mini.
         max_chars_per_chunk: Max characters per chunk before truncation.
                              Default 2,000 chars ≈ 500 tokens.
 
