@@ -52,7 +52,7 @@ def ingested_contract(request, tmp_sqlite):
 
     source_name = pdf_path.name
     parsed = parse_pdf(pdf_path, source_name=source_name)
-    chunks = chunk_document(parsed, source=source_name)
+    chunks = chunk_document(parsed, source=pdf_path)
 
     for chunk in chunks:
         tmp_sqlite.execute(
