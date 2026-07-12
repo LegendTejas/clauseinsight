@@ -50,7 +50,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 import pymupdf as fitz  # PyMuPDF 1.27+ uses pymupdf instead of fitz
 
@@ -212,7 +212,7 @@ def _count_bold_section_headers(fitz_doc: fitz.Document, page_limit: int) -> int
     count = 0
     for page_idx in range(min(page_limit, fitz_doc.page_count)):
         page = fitz_doc[page_idx]
-        for block in page.get_text("dict", sort=True)["blocks"]:
+        for block in cast(dict[str, Any], page.get_text("dict", sort=True))["blocks"]:
             if block["type"] != 0:
                 continue
             for line in block["lines"]:
@@ -239,7 +239,7 @@ def _detect_onenda_style(fitz_doc: fitz.Document, page_limit: int) -> bool:
     for page_idx in range(min(page_limit, fitz_doc.page_count)):
         page = fitz_doc[page_idx]
         lines_data = []
-        for block in page.get_text("dict", sort=True)["blocks"]:
+        for block in cast(dict[str, Any], page.get_text("dict", sort=True))["blocks"]:
             if block["type"] != 0:
                 continue
             for line in block["lines"]:
@@ -291,7 +291,7 @@ def chunk_document(
     if isinstance(source, (str, Path)):
         fitz_doc = fitz.open(Path(source))
     else:
-        fitz_doc = fitz.open(stream=io.BytesIO(source), filetype="pdf")
+        fitz_doc = fitz.open(stream=source, filetype="pdf")
 
     try:
         fmt = detect_format(parsed, fitz_doc)
@@ -357,7 +357,8 @@ def _chunk_section_n(
     bold_section_positions: set[str] = set()
     for page_idx in range(fitz_doc.page_count):
         page = fitz_doc[page_idx]
-        for block in page.get_text("dict", sort=True)["blocks"]:
+        page_dict: dict = page.get_text("dict", sort=True)  # type: ignore
+        for block in page_dict["blocks"]:
             if block["type"] != 0:
                 continue
             for line in block["lines"]:
@@ -550,7 +551,7 @@ def _chunk_onenda_table(
     for page_idx in range(fitz_doc.page_count):
         page = fitz_doc[page_idx]
         page_num = page_idx + 1
-        for block in page.get_text("dict", sort=True)["blocks"]:
+        for block in cast(dict[str, Any], page.get_text("dict", sort=True))["blocks"]:
             if block["type"] != 0:
                 continue
             x0 = round(block["bbox"][0], 1)
@@ -608,7 +609,7 @@ def _chunk_onenda_table(
             heading_parts = [txt]  # start with "N."
             j = i + 1
             while j < len(terms_lines):
-                ntxt, nbold, nx0, npg = terms_lines[j]
+                ntxt, nbold, nx0, _ = terms_lines[j]
                 if nbold and abs(nx0 - x0) < 5:
                     heading_parts.append(ntxt)
                     j += 1
@@ -626,7 +627,7 @@ def _chunk_onenda_table(
             content_parts = []
             j = i + 1
             while j < len(terms_lines):
-                ntxt, nbold, nx0, npg = terms_lines[j]
+                ntxt, nbold, _, npg = terms_lines[j]
                 # Stop if we hit another sub-clause label or top-level number
                 if re.match(r'^\([a-z]{1,2}\)$', ntxt) or re.match(r'^\d+\.$', ntxt):
                     break
@@ -683,7 +684,7 @@ def _extract_onenda_metadata(fitz_doc: fitz.Document, page0: PageContent) -> Chu
     Returns None if the block can't be found (e.g. it's not a oneNDA-style doc).
     """
     page = fitz_doc[0]
-    all_text = page.get_text("text", sort=True)
+    all_text = str(page.get_text("text", sort=True))
 
     var_start = all_text.find("VARIABLES")
     terms_start = all_text.find("TERMS")
@@ -758,7 +759,7 @@ def _chunk_fallback_prose(parsed: ParsedDocument) -> list[Chunk]:
         carry = ""
         para_num += 1
         page_s = _char_pos_to_page(char_cursor, page_offsets)
-        page_e = _char_pos_to_page(char_cursor + len(combined), page_offsets)
+        page_e = _char_pos_to_page(char_cursor + len(combined) - 1, page_offsets)
 
         heading = " ".join(combined.split()[:8])
         chunks.append(Chunk(
@@ -830,7 +831,7 @@ def _char_pos_to_page(pos: int, page_offsets: list[tuple[int, int, int]]) -> int
     Falls back to the last page if pos is beyond the end (rounding artifacts).
     """
     for start, end, pg in page_offsets:
-        if start <= pos <= end:
+        if start <= pos <= end + 1:
             return pg
     return page_offsets[-1][2] if page_offsets else 1
 
@@ -859,7 +860,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     if len(sys.argv) < 2:
-        print("Usage: python src/chunker.py <path_to_pdf>")
+        print("Usage: python src/pipeline/chunker.py <path_to_pdf>")
         sys.exit(1)
 
     path = sys.argv[1]

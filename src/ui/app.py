@@ -28,9 +28,20 @@ load_dotenv()
 
 import streamlit as st
 from src.utils.logger import setup_logging
+import threading
+from src.pipeline.embedder import sync_sqlite_to_chroma
 
 # Configure logging once — all modules inherit this
 setup_logging()
+
+# ── Background Sync ────────────────────────────────────────────────
+@st.cache_resource
+def init_background_sync():
+    thread = threading.Thread(target=sync_sqlite_to_chroma, daemon=True)
+    thread.start()
+    return thread
+
+init_background_sync()
 
 # ── Page config ────────────────────────────────────────────────────
 st.set_page_config(

@@ -29,6 +29,7 @@ import io
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import pymupdf as fitz  # PyMuPDF 1.27+ uses pymupdf instead of fitz
 
@@ -212,7 +213,7 @@ def _open_pdf(
             # bytes input — e.g. from Streamlit's uploader.getvalue()
             resolved_name = source_name or "uploaded_document.pdf"
             file_size = len(source)
-            doc = fitz.open(stream=io.BytesIO(source), filetype="pdf")
+            doc = fitz.open(stream=source, filetype="pdf")
     except fitz.FileDataError as exc:
         raise CorruptedPDFError(
             f"'{source_name or source}' could not be read as a valid PDF. "
@@ -228,7 +229,7 @@ def _extract_page(doc: fitz.Document, index: int) -> PageContent:
     """Extract text from a single page. index is 0-based (PyMuPDF convention)."""
     page = doc.load_page(index)
     # sort=True respects column borders and prevents text jumbling in signature blocks or side-by-side structures.
-    raw_text = page.get_text("text", sort=True)
+    raw_text = cast(str, page.get_text("text", sort=True))
     cleaned = _clean_text(raw_text)
     return PageContent(page_number=index + 1, text=cleaned)  # store as 1-indexed
 
@@ -275,7 +276,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     if len(sys.argv) != 2:
-        print("Usage: python src/parser.py <path_to_pdf>")
+        print("Usage: python src/pipeline/parser.py <path_to_pdf>")
         sys.exit(1)
 
     result = parse_pdf(sys.argv[1])

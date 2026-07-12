@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import os
 from pathlib import Path
 
 import chromadb
@@ -45,7 +46,12 @@ logger = logging.getLogger(__name__)
 # These are the single source of truth — import from here everywhere.
 # ──────────────────────────────────────────────────────────────────
 
-CHROMA_COLLECTION = "clauseinsight_chunks"
+def get_embedding_model() -> str:
+    return os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
+
+def get_chroma_collection_name() -> str:
+    model_name = get_embedding_model().replace("-", "_")
+    return f"contracts_{model_name}"
 
 DEFAULT_CHROMA_DIR = Path("data/chroma")
 DEFAULT_SQLITE_PATH = Path("data/metadata.db")
@@ -80,13 +86,14 @@ def get_chroma_collection(
         path=str(chroma_dir),
         settings=Settings(anonymized_telemetry=False),
     )
+    collection_name = get_chroma_collection_name()
     collection = client.get_or_create_collection(
-        name=CHROMA_COLLECTION,
+        name=collection_name,
         metadata={"hnsw:space": "cosine"},
     )
     logger.info(
         "ChromaDB collection '%s' ready (dir: %s, count: %d)",
-        CHROMA_COLLECTION, chroma_dir, collection.count()
+        collection_name, chroma_dir, collection.count()
     )
     return collection
 

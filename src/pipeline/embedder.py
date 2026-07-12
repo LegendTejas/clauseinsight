@@ -48,7 +48,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, cast
 
 import chromadb
 import sqlite3
@@ -62,11 +62,13 @@ if _root_dir not in _sys.path:
 from src.pipeline.chunker import Chunk
 
 from src.utils.store import (
-    CHROMA_COLLECTION,
     DEFAULT_CHROMA_DIR,
     DEFAULT_SQLITE_PATH,
     get_chroma_collection,
     get_sqlite_connection,
+    get_embedding_model,
+    list_ingested_contracts,
+    get_all_chunks_for_contract,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,7 +78,7 @@ logger = logging.getLogger(__name__)
 # Embedding constants
 # ──────────────────────────────────────────────────────────────────
 
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_MODEL = get_embedding_model()
 
 # text-embedding-3-small native dimension is 1536.
 EMBEDDING_DIM = 1536
@@ -359,7 +361,7 @@ def embed_and_store(
         # Write to ChromaDB
         collection.add(
             ids=batch_ids,
-            embeddings=vectors,
+            embeddings=cast(Any, vectors),
             metadatas=[
                 {
                     "source_name":  source_name,
@@ -453,6 +455,53 @@ def _log_ingestion(
         (source_name, total, embedded, skipped, failed),
     )
     conn.commit()
+
+
+def sync_sqlite_to_chroma() -> None:
+    """
+    Background job: synchronizes SQLite chunks to the current ChromaDB collection.
+    If the embedding model changes, this re-embeds all existing metadata into
+    the new vector space using embed_and_store's idempotency.
+    """
+    logger.info("Starting background sync from SQLite to ChromaDB...")
+    conn = None
+    try:
+        conn = get_sqlite_connection()
+        collection = get_chroma_collection()
+        contracts = list_ingested_contracts(conn)
+
+        for contract in contracts:
+            source_name = contract["source_name"]
+            rows = get_all_chunks_for_contract(source_name, conn, include_text=True)
+
+            # Reconstruct Chunk objects
+            chunks = []
+            for row in rows:
+                c = Chunk(
+                    clause_id=row["clause_id"],
+                    heading=row["heading"] or "",
+                    text=row["full_text"] or "",
+                    page_start=row["page_start"],
+                    page_end=row["page_end"],
+                    format_used=row["format_used"] or "fallback_prose"
+                )
+                chunks.append(c)
+
+            if chunks:
+                logger.info("Syncing %d chunks for '%s'...", len(chunks), source_name)
+                embed_and_store(
+                    chunks=chunks,
+                    source_name=source_name,
+                    collection=collection,
+                    conn=conn
+                )
+
+        logger.info("Background sync complete.")
+    except Exception as e:
+        logger.error("Error during background sync: %s", e)
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 # ──────────────────────────────────────────────────────────────────
