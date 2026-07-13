@@ -36,6 +36,9 @@ from src.utils.store import (
 from src.pipeline.parser import parse_pdf, PasswordProtectedError, CorruptedPDFError
 from src.pipeline.chunker import chunk_document
 from src.pipeline.embedder import embed_and_store
+from src.ui.theme import (
+    apply_theme, gradient_header, sidebar_brand, glass_card, feature_card, top_bar,
+)
 
 logger = get_logger(__name__)
 
@@ -46,8 +49,17 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📄 Upload Contract")
-st.markdown("Upload a legal contract PDF to begin. Supported formats: NDA, MSA, employment agreements, SaaS terms.")
+# ── Apply Theme ────────────────────────────────────────────────────
+apply_theme()
+top_bar()
+sidebar_brand()
+
+# ── Page Header ────────────────────────────────────────────────────
+gradient_header(
+    title="Upload Contract",
+    subtitle="Upload a legal contract PDF to begin. Supported: NDA, MSA, employment agreements, SaaS terms.",
+    emoji="📄",
+)
 
 MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "50"))
 
@@ -61,28 +73,88 @@ def get_stores():
 collection, conn = get_stores()
 
 # ── Already ingested contracts ─────────────────────────────────────
-st.subheader("Ingested Contracts")
+st.markdown("""
+<div style="animation:fadeInUp 0.5s ease-out;">
+    <h2 style="
+        font-family:'Inter',sans-serif;
+        font-weight:700;
+        font-size:1.3rem;
+        color:#F1F5F9;
+        margin:0 0 0.8rem 0;
+    ">📋 Ingested Contracts</h2>
+</div>
+""", unsafe_allow_html=True)
 
 contracts = list_ingested_contracts(conn)
 
 if not contracts:
     st.info("No contracts ingested yet. Upload one below to get started.")
 else:
-    for contract in contracts:
-        col1, col2, col3, col4 = st.columns([4, 1, 2, 1])
-        with col1:
-            # Highlight selected contract
-            is_selected = (
-                st.session_state.get("active_contract") == contract["source_name"]
-            )
-            label = f"{'✅ ' if is_selected else ''}{contract['source_name']}"
-            st.markdown(f"**{label}**")
-        with col2:
-            st.markdown(f"{contract['chunk_count']} chunks")
-        with col3:
-            st.markdown(f"Ingested: {contract['last_ingested'][:16]}")
-        with col4:
-            if st.button("Select", key=f"select_{contract['source_name']}"):
+    theme_mode = st.session_state.get("theme_mode", "dark")
+    is_light = theme_mode == "light"
+    for idx, contract in enumerate(contracts):
+        is_selected = (
+            st.session_state.get("active_contract") == contract["source_name"]
+        )
+        if is_selected:
+            border_color = "rgba(139,92,246,0.6)"
+            glow = "box-shadow:0 0 15px rgba(139,92,246,0.1);"
+        else:
+            border_color = "#000000" if is_light else "rgba(255,255,255,0.08)"
+            glow = ""
+        
+        text_color = "#000000" if is_light else "#F1F5F9"
+
+        # Contract card with glassmorphism
+        st.markdown(f"""
+<div style="
+    background:rgba(255,255,255,0.03);
+    border:1px solid {border_color};
+    border-radius:12px;
+    padding:0.9rem 1.2rem;
+    margin-bottom:0.5rem;
+    backdrop-filter:blur(10px);
+    animation:fadeInUp 0.5s ease-out {idx * 0.08}s both;
+    transition:all 0.3s cubic-bezier(0.4,0,0.2,1); {glow}
+    display:flex;
+    align-items:center;
+    gap:1rem;
+"
+onmouseover="this.style.borderColor='rgba(255,255,255,0.15)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.3)';"
+onmouseout="this.style.borderColor='{border_color}';this.style.boxShadow='{"0 0 15px rgba(139,92,246,0.1)" if is_selected else "none"}';"
+>
+    <div style="flex:1;">
+        <span style="
+            font-family:'Inter',sans-serif;
+            font-weight:600;
+            color:{text_color};
+            font-size:0.95rem;
+        ">{'✅ ' if is_selected else '📄 '}{contract['source_name']}</span>
+    </div>
+    <div style="
+        font-family:'Inter',sans-serif;
+        color:#64748B;
+        font-size:0.78rem;
+        font-weight:500;
+    ">
+        <span style="
+            background:rgba(139,92,246,0.1);
+            color:#8B5CF6;
+            padding:2px 8px;
+            border-radius:6px;
+            font-weight:600;
+            margin-right:0.5rem;
+        ">{contract['chunk_count']} chunks</span>
+        {contract['last_ingested'][:16]}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # Streamlit buttons need to be outside the HTML card
+        col_select, col_spacer = st.columns([1, 6])
+        with col_select:
+            if st.button("Select", key=f"select_{contract['source_name']}",
+                         type="primary" if not is_selected else "secondary"):
                 st.session_state["active_contract"] = contract["source_name"]
                 st.success(f"Selected: {contract['source_name']}")
                 st.rerun()
@@ -104,7 +176,17 @@ else:
 st.divider()
 
 # ── Upload section ─────────────────────────────────────────────────
-st.subheader("Upload New Contract")
+st.markdown("""
+<div style="animation:fadeInUp 0.6s ease-out;">
+    <h2 style="
+        font-family:'Inter',sans-serif;
+        font-weight:700;
+        font-size:1.3rem;
+        color:#F1F5F9;
+        margin:0 0 0.8rem 0;
+    ">⬆️ Upload New Contract</h2>
+</div>
+""", unsafe_allow_html=True)
 
 uploaded = st.file_uploader(
     f"Choose a PDF (max {MAX_MB} MB)",
@@ -119,7 +201,30 @@ if uploaded is not None:
         st.error(f"File too large ({size_mb:.1f} MB). Maximum is {MAX_MB} MB.")
         st.stop()
 
-    st.markdown(f"**File:** {uploaded.name} · {size_mb:.2f} MB")
+    # File info card
+    st.markdown(f"""
+<div style="
+    background:rgba(139,92,246,0.05);
+    border:1px solid rgba(139,92,246,0.2);
+    border-radius:12px;
+    padding:0.8rem 1.2rem;
+    margin:0.5rem 0;
+    animation:fadeInUp 0.4s ease-out;
+    display:flex;
+    align-items:center;
+    gap:0.8rem;
+">
+    <span style="font-size:1.5rem;">📎</span>
+    <div>
+        <span style="font-family:'Inter',sans-serif;font-weight:600;color:#F1F5F9;">
+            {uploaded.name}
+        </span>
+        <span style="font-family:'Inter',sans-serif;color:#64748B;font-size:0.85rem;margin-left:0.5rem;">
+            {size_mb:.2f} MB
+        </span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     # Check if already ingested
     existing = [c["source_name"] for c in contracts]
@@ -209,10 +314,32 @@ if uploaded is not None:
 
         # Set as active contract and prompt navigation
         st.session_state["active_contract"] = uploaded.name
-        st.success(
-            f"**'{uploaded.name}' is ready.** "
-            "Use the sidebar to ask questions or run the risk scanner."
-        )
+
+        # Success card
+        st.markdown(f"""
+<div style="
+    background:rgba(16,185,129,0.06);
+    border:1px solid rgba(16,185,129,0.25);
+    border-radius:12px;
+    padding:1.2rem;
+    margin-top:1rem;
+    animation:fadeInUp 0.5s ease-out;
+">
+    <p style="
+        font-family:'Inter',sans-serif;
+        font-weight:600;
+        color:#10B981;
+        font-size:1.05rem;
+        margin:0 0 0.4rem 0;
+    ">✅ '{uploaded.name}' is ready!</p>
+    <p style="
+        font-family:'Inter',sans-serif;
+        color:#94A3B8;
+        font-size:0.9rem;
+        margin:0;
+    ">Use the sidebar to ask questions or run the risk scanner.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Sidebar: active contract indicator ────────────────────────────
 if "active_contract" in st.session_state:
@@ -221,3 +348,6 @@ if "active_contract" in st.session_state:
     )
 else:
     st.sidebar.info("No contract selected.")
+
+# ── Footer ─────────────────────────────────────────────────────────
+

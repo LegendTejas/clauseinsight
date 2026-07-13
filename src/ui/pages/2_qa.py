@@ -26,12 +26,19 @@ from src.utils.store import (
     get_chroma_collection,
     get_sqlite_connection,
     list_ingested_contracts,
+    save_chat_session,
+    list_chat_sessions,
+    load_chat_session,
+    delete_chat_session,
     DEFAULT_CHROMA_DIR,
     DEFAULT_SQLITE_PATH,
 )
 from src.retrieval.retriever import retrieve, retrieve_for_contract
 from src.retrieval.context_builder import build_qa_context
 from src.risk.risk_labels import RISK_COLORS, RISK_ICONS, RiskLevel
+from src.ui.theme import (
+    apply_theme, gradient_header, sidebar_brand, top_bar,
+)
 
 logger = get_logger(__name__)
 
@@ -42,8 +49,17 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("💬 Ask the Contract")
-st.markdown("Ask a plain-English question and get an answer cited to the exact clause and page.")
+# ── Apply Theme ────────────────────────────────────────────────────
+apply_theme()
+top_bar()
+sidebar_brand()
+
+# ── Page Header ────────────────────────────────────────────────────
+gradient_header(
+    title="Ask the Contract",
+    subtitle="Ask a plain-English question and get an answer cited to the exact clause and page.",
+    emoji="💬",
+)
 
 # ── Shared store connections ───────────────────────────────────────
 @st.cache_resource
@@ -62,24 +78,85 @@ if not contracts:
 
 # ── Sidebar: contract selection + settings ─────────────────────────
 with st.sidebar:
-    st.markdown("### Contract")
-    contract_options = ["🌐 All contracts"] + [c["source_name"] for c in contracts]
+    st.markdown("""
+<div style="
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:0.9rem;
+    color:#94A3B8;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    margin-bottom:0.5rem;
+">Contract</div>
+""", unsafe_allow_html=True)
 
-    # Default to active_contract from session if set
-    default_idx = 0
-    if "active_contract" in st.session_state:
-        try:
-            default_idx = contract_options.index(st.session_state["active_contract"])
-        except ValueError:
-            default_idx = 0
+    contract_names = [c["source_name"] for c in contracts]
+    default_sel = []
+    if "active_contract" in st.session_state and st.session_state["active_contract"] in contract_names:
+        default_sel = [st.session_state["active_contract"]]
 
-    selected = st.selectbox("Search in", contract_options, index=default_idx)
-    source_filter = None if selected == "🌐 All contracts" else selected
+    selected = st.multiselect(
+        "Search in (leave empty for All)", 
+        contract_names, 
+        default=default_sel,
+        placeholder="🌐 All contracts"
+    )
+    source_filter = selected if selected else None
 
-    st.markdown("### Settings")
+    st.markdown("""
+<div style="
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:0.9rem;
+    color:#94A3B8;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    margin:1rem 0 0.5rem 0;
+">Settings</div>
+""", unsafe_allow_html=True)
+
     top_k = st.slider("Clauses to retrieve", min_value=1, max_value=10, value=5)
-    show_risk = st.toggle("Show risk level for retrieved clauses", value=True)
+    show_risk = st.toggle("Show relevance indicators", value=True)
     show_context = st.toggle("Show retrieved clause text", value=False)
+
+    st.markdown("---")
+    st.markdown("""
+<div style="
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:0.9rem;
+    color:#94A3B8;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    margin-bottom:0.5rem;
+">🕒 Past Conversations</div>
+""", unsafe_allow_html=True)
+
+    if st.button("➕ New Chat", use_container_width=True):
+        st.session_state["chat_history"] = []
+        if "chat_session_id" in st.session_state:
+            del st.session_state["chat_session_id"]
+        st.rerun()
+
+    past_sessions = list_chat_sessions(conn)
+    if not past_sessions:
+        st.caption("No past conversations yet.")
+    else:
+        for s in past_sessions:
+            colA, colB = st.columns([8, 2])
+            with colA:
+                if st.button(s["title"] or "Untitled Chat", key=f"load_{s['id']}", use_container_width=True):
+                    st.session_state["chat_history"] = load_chat_session(conn, s["id"])
+                    st.session_state["chat_session_id"] = s["id"]
+                    st.rerun()
+            with colB:
+                if st.button("🗑️", key=f"del_{s['id']}", help="Delete chat"):
+                    delete_chat_session(conn, s["id"])
+                    if st.session_state.get("chat_session_id") == s["id"]:
+                        st.session_state["chat_history"] = []
+                        if "chat_session_id" in st.session_state:
+                            del st.session_state["chat_session_id"]
+                    st.rerun()
 
     if "active_contract" in st.session_state:
         st.success(f"**Active:** {st.session_state['active_contract']}")
@@ -136,8 +213,34 @@ for msg in st.session_state["chat_history"]:
                 for cit in msg["citations"]:
                     st.markdown(f"- {cit}")
 
+# ── Suggested Questions ────────────────────────────────────────────
+suggested_query = None
+if not st.session_state["chat_history"]:
+    st.markdown("<div style='margin-top: 2rem; margin-bottom: 1rem; color: var(--ci-text-muted); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;'>Suggested Questions</div>", unsafe_allow_html=True)
+    if source_filter is None and len(contracts) > 1:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("⚖️ Compare termination clauses", use_container_width=True):
+                suggested_query = "Compare the termination clauses between all ingested contracts and list the differences."
+        with col2:
+            if st.button("🔍 Analyze common liabilities", use_container_width=True):
+                suggested_query = "What are the common liabilities and indemnification terms across these documents?"
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📝 Summarize payment terms", use_container_width=True):
+                suggested_query = "Summarize the payment terms in this contract."
+            if st.button("⚖️ What is the governing law?", use_container_width=True):
+                suggested_query = "What is the governing law and jurisdiction of this contract?"
+        with col2:
+            if st.button("⏳ List termination conditions", use_container_width=True):
+                suggested_query = "What are the termination conditions in this contract?"
+            if st.button("🚩 Highlight key risks", use_container_width=True):
+                suggested_query = "Highlight any key risks, strict obligations, or red flags in this contract."
+
 # ── Query input ────────────────────────────────────────────────────
-query = st.chat_input("Ask a question about the contract...")
+user_input = st.chat_input("Ask a question about the contract...")
+query = suggested_query or user_input
 
 if query:
     # Show user message
@@ -194,17 +297,33 @@ if query:
             for chunk in ctx.chunks:
                 risk_badge = ""
                 if show_risk:
-                    # Quick inline risk from similarity score as proxy
-                    # (full scan is in 3_scanner.py — this is lightweight)
                     score = chunk.similarity_score
                     if score >= 0.8:
-                        risk_badge = " · 🟢 High relevance"
+                        badge_color = "#10B981"
+                        badge_text = "High relevance"
+                        badge_icon = "🟢"
                     elif score >= 0.6:
-                        risk_badge = " · 🟡 Medium relevance"
+                        badge_color = "#F59E0B"
+                        badge_text = "Medium relevance"
+                        badge_icon = "🟡"
                     else:
-                        risk_badge = " · 🔴 Low relevance"
+                        badge_color = "#EF4444"
+                        badge_text = "Low relevance"
+                        badge_icon = "🔴"
 
-                st.markdown(f"**{chunk.citation}**{risk_badge}")
+                    risk_badge = (
+                        f' · <span style="'
+                        f'color:{badge_color};'
+                        f'font-family:Inter,sans-serif;'
+                        f'font-weight:600;'
+                        f'font-size:0.82rem;'
+                        f'">{badge_icon} {badge_text}</span>'
+                    )
+
+                st.markdown(
+                    f"**{chunk.citation}**{risk_badge}",
+                    unsafe_allow_html=True,
+                )
 
                 if show_context:
                     st.markdown(
@@ -224,8 +343,27 @@ if query:
             "citations": ctx.citations,
         })
 
+        # ── 4. Save Chat Session ───────────────────────────────
+        title = "New Chat"
+        if len(st.session_state["chat_history"]) >= 2:
+            first_q = st.session_state["chat_history"][0]["content"]
+            title = (first_q[:30] + '...') if len(first_q) > 30 else first_q
+            
+        new_id = save_chat_session(
+            conn, 
+            st.session_state.get("chat_session_id", ""), 
+            title, 
+            st.session_state["chat_history"]
+        )
+        st.session_state["chat_session_id"] = new_id
+
 # ── Clear chat button ─────────────────────────────────────────────
 if st.session_state["chat_history"]:
-    if st.button("🗑️ Clear chat history"):
+    if st.button("🧹 Clear screen (keep history)"):
         st.session_state["chat_history"] = []
+        if "chat_session_id" in st.session_state:
+            del st.session_state["chat_session_id"]
         st.rerun()
+
+# ── Footer ─────────────────────────────────────────────────────────
+
