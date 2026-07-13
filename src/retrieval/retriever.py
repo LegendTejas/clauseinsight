@@ -58,8 +58,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Optional, Any, Sequence, Mapping
-
+from typing import Optional, Any, Sequence, Mapping, cast
 import chromadb
 from chromadb.api.types import Where
 from pathlib import Path
@@ -161,7 +160,7 @@ def retrieve(
     query: str,
     top_k: int = TOP_K,
     mmr_lambda: float = MMR_LAMBDA,
-    source_name: Optional[str] = None,
+    source_name: Optional[str | list[str]] = None,
     collection: Optional[chromadb.Collection] = None,
     chroma_dir=DEFAULT_CHROMA_DIR,
     db_path=DEFAULT_SQLITE_PATH,
@@ -212,7 +211,14 @@ def retrieve(
             return []
 
         # Build optional where filter for per-contract scoping
-        where_filter: Optional[Where] = {"source_name": source_name} if source_name else None
+        where_filter: Optional[chromadb.Where] = None
+        if source_name:
+            if isinstance(source_name, str):
+                where_filter = {"source_name": source_name}
+            elif isinstance(source_name, list) and len(source_name) == 1:
+                where_filter = {"source_name": source_name[0]}
+            elif isinstance(source_name, list) and len(source_name) > 1:
+                where_filter = cast(Where, {"source_name": {"$in": source_name}})
 
         raw = collection.query(
             query_embeddings=[query_vector],

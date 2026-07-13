@@ -177,6 +177,13 @@ def get_sqlite_connection(
             failed        INTEGER,
             ingested_at   TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id            TEXT PRIMARY KEY,
+            title         TEXT,
+            created_at    TEXT DEFAULT (datetime('now')),
+            messages      TEXT
+        );
     """)
     conn.commit()
     logger.info("SQLite metadata store ready (path: %s)", db_path)
@@ -345,3 +352,60 @@ def delete_contract(
         len(ids), source_name
     )
     return len(ids)
+
+
+# ──────────────────────────────────────────────────────────────────
+# Chat Session Helpers
+# ──────────────────────────────────────────────────────────────────
+
+import json
+import uuid
+
+def save_chat_session(
+    conn: sqlite3.Connection,
+    session_id: str,
+    title: str,
+    messages: list[dict],
+) -> str:
+    """Save or update a chat session. Returns the session_id."""
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    msgs_json = json.dumps(messages)
+    conn.execute(
+        """
+        INSERT INTO chat_sessions (id, title, messages)
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            messages = excluded.messages
+        """,
+        (session_id, title, msgs_json),
+    )
+    conn.commit()
+    return session_id
+
+
+def list_chat_sessions(conn: sqlite3.Connection) -> list[dict]:
+    """Return all chat sessions ordered by newest first."""
+    rows = conn.execute(
+        "SELECT id, title, created_at FROM chat_sessions ORDER BY created_at DESC"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def load_chat_session(conn: sqlite3.Connection, session_id: str) -> list[dict]:
+    """Load messages for a given chat session."""
+    row = conn.execute(
+        "SELECT messages FROM chat_sessions WHERE id = ?",
+        (session_id,)
+    ).fetchone()
+    if row and row["messages"]:
+        return json.loads(row["messages"])
+    return []
+
+
+def delete_chat_session(conn: sqlite3.Connection, session_id: str) -> None:
+    """Delete a chat session."""
+    conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+    conn.commit()

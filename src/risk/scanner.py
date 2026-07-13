@@ -68,7 +68,7 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import openai
 
@@ -438,6 +438,7 @@ def scan_contract(
     db_path: Path = DEFAULT_SQLITE_PATH,
     batch_size: int = SCAN_BATCH_SIZE,
     skip_sub_clauses: bool = True,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> ScanResult:
     """
     Scan all clauses of a contract and classify each by risk level.
@@ -515,6 +516,9 @@ def scan_contract(
 
         labels = _scan_batch(client, batch, source_name, system_prompt)
         all_labels.extend(labels)
+
+        if progress_callback:
+            progress_callback(batch_num, total_batches)
 
         # Rate limit guard between batches
         if batch_start + batch_size < len(chunks_to_scan):
