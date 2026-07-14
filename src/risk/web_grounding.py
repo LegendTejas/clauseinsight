@@ -64,7 +64,7 @@ _root_dir = str(_Path(__file__).resolve().parent.parent.parent)
 if _root_dir not in _sys.path:
     _sys.path.insert(0, _root_dir)
 
-from src.risk.risk_labels import RiskLabel
+from src.risk.risk_labels import RiskLabel, RiskLevel
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +325,17 @@ def ground_flagged_clauses(
             time.sleep(INTER_GROUND_SLEEP)
 
     return results
+
+
+def ground_high_risk_clauses(
+    labels: list[RiskLabel],
+    max_clauses: int = MAX_CLAUSES_PER_RUN,
+) -> dict[str, GroundingResult]:
+    """
+    Backward-compatible wrapper for callers/tests that expect HIGH-only grounding.
+    """
+    high_risk_labels = [label for label in labels if label.risk_level == RiskLevel.HIGH]
+    return ground_flagged_clauses(high_risk_labels, max_clauses=max_clauses)
 
 
 # ──────────────────────────────────────────────────────────────────
