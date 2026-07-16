@@ -434,20 +434,23 @@ def _extract_batch(
     _scan_batch structure.
     """
     user_prompt = _build_user_prompt(batch)
-    delay = RETRY_DELAY
 
     for attempt in range(1, MAX_EXTRACT_RETRIES + 1):
+        delay = RETRY_DELAY * (2 ** (attempt - 1))  # reset per-attempt: 5s, 10s, 20s
         try:
             raw = _call_llm(client, system_prompt, user_prompt)
             results = _parse_llm_response(raw, batch, source_name)
 
-            if len(results) == len(batch):
-                return results
+            if len(results) > 0:
+                if len(results) != len(batch):
+                    logger.info("LLM returned %d results for %d clauses. Accepting partial/merged parse.", len(results), len(batch))
+                return results  # success — no sleep here, inter-batch sleep is in extract_obligations
 
             logger.warning(
-                "Batch parse returned %d/%d results on attempt %d. Retrying...",
-                len(results), len(batch), attempt
+                "Batch parse returned 0 results on attempt %d. Retrying...",
+                attempt
             )
+            time.sleep(delay)
 
         except Exception as exc:
             err_str = str(exc).lower()
@@ -460,10 +463,6 @@ def _extract_batch(
                 time.sleep(delay * 2)
             else:
                 time.sleep(delay)
-            delay *= 2
-            continue
-
-        time.sleep(delay)
 
     logger.error(
         "Batch failed after %d attempts — emitting failure flags for: %s",
@@ -484,6 +483,7 @@ def extract_obligations(
     batch_size: int = OBLIGATION_BATCH_SIZE,
     skip_sub_clauses: bool = True,
     progress_callback: Optional[Callable[[int, int], None]] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
 ) -> ExtractionResult:
     """
     Extract all dated obligations/deadlines from a contract's clauses.
@@ -500,6 +500,7 @@ def extract_obligations(
         skip_sub_clauses: If True, only scan top-level clauses (not sub-clauses
                           like Section 4(a)). Reduces API calls significantly.
                           Set False for maximum granularity.
+        is_cancelled:     Optional function that returns True if extraction should abort early.
 
     Returns:
         ExtractionResult with all found Obligation objects and summary counts.
@@ -550,6 +551,10 @@ def extract_obligations(
     for batch_num, batch_start in enumerate(
         range(0, len(chunks_to_scan), batch_size), start=1
     ):
+        if is_cancelled and is_cancelled():
+            logger.info("Extraction cancelled for '%s'", source_name)
+            break
+
         batch = chunks_to_scan[batch_start: batch_start + batch_size]
 
         logger.info(

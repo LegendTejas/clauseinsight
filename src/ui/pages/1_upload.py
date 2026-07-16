@@ -349,5 +349,5 @@ if "active_contract" in st.session_state:
 else:
     st.sidebar.info("No contract selected.")
 
-# ── Footer ─────────────────────────────────────────────────────────
+
 

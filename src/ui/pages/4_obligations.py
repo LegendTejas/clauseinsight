@@ -35,7 +35,7 @@ from src.obligations.obligation_labels import (
 )
 from src.ui.theme import (
     apply_theme, gradient_header, obligation_badge_html,
-    sidebar_brand, top_bar,
+    sidebar_brand, top_bar
 )
 
 logger = get_logger(__name__)
@@ -135,7 +135,7 @@ with st.sidebar:
 if "obligation_results" not in st.session_state:
     st.session_state["obligation_results"] = {}
 
-col_btn, col_info = st.columns([1, 4])
+col_btn, col_info = st.columns([1.5, 3.5])
 with col_btn:
     run_extraction = st.button("📅 Extract Obligations", type="primary")
 with col_info:
@@ -169,27 +169,23 @@ with col_info:
 
 import concurrent.futures
 import threading
-from streamlit.runtime.scriptrunner import add_script_run_ctx
+from src.utils.store import BACKGROUND_TASKS
 
 if "bg_executor" not in st.session_state:
     st.session_state["bg_executor"] = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 job_key = f"ext_job_{selected_contract}"
 prog_key = f"ext_prog_{selected_contract}"
+res_key = f"ext_res_{selected_contract}"
 
 if run_extraction:
-    st.session_state[job_key] = "running"
-    st.session_state[prog_key] = (0, 1)
+    BACKGROUND_TASKS[job_key] = "running"
+    BACKGROUND_TASKS[prog_key] = (0, 1)
 
     def background_extract():
         try:
-            add_script_run_ctx(threading.current_thread())
-        except Exception:
-            pass
-
-        try:
             def update_progress(current, total):
-                st.session_state[prog_key] = (current, total)
+                BACKGROUND_TASKS[prog_key] = (current, total)
                 
             from src.utils.store import get_sqlite_connection
             thread_conn = get_sqlite_connection()
@@ -199,35 +195,79 @@ if run_extraction:
                 batch_size=batch_size,
                 skip_sub_clauses=skip_sub,
                 progress_callback=update_progress,
+                is_cancelled=lambda: BACKGROUND_TASKS.get(job_key) == "cancelled"
             )
-            st.session_state["obligation_results"][selected_contract] = result
-            st.session_state["active_contract"] = selected_contract
-            st.session_state[job_key] = "done"
+            
+            BACKGROUND_TASKS[res_key] = result
+            BACKGROUND_TASKS[job_key] = "done"
         except Exception as exc:
             logger.exception("Obligation extraction failed for %s", selected_contract)
-            st.session_state[job_key] = f"Error: {exc}"
+            BACKGROUND_TASKS[job_key] = f"Error: {exc}"
 
     st.session_state["bg_executor"].submit(background_extract)
     st.rerun()
 
-if st.session_state.get(job_key) == "running":
+status = BACKGROUND_TASKS.get(job_key)
+
+if status == "running":
     @st.fragment(run_every="1s")
     def poll_ext_progress():
-        if st.session_state.get(job_key) != "running":
+        if BACKGROUND_TASKS.get(job_key) != "running":
             st.rerun()
             return
             
-        current, total = st.session_state.get(prog_key, (0, 1))
+        current, total = BACKGROUND_TASKS.get(prog_key, (0, 1))
         pct = int((current / total) * 100) if total > 0 else 0
-        st.progress(pct, text=f"Scanning '{selected_contract}' for obligations in background... {pct}% ({current}/{total} batches)")
+        
+        if pct < 100:
+            icon_html = """<style>
+.loader {
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top: 2px solid #3B82F6;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div class="loader"></div>"""
+        else:
+            icon_html = "✅"
+            
+        st.markdown(f"""
+<div style="display:flex; align-items:center; gap:8px; margin-bottom: 4px;">
+    <span style="font-size: 14px;">Scanning '{selected_contract}' for obligations in background... {pct}% ({current}/{total} batches)</span>
+    {icon_html}
+</div>
+""", unsafe_allow_html=True)
+        st.progress(pct)
+        
+        if st.button("🛑 Cancel Extraction", use_container_width=True):
+            BACKGROUND_TASKS[job_key] = "cancelled"
+            st.rerun()
         
     poll_ext_progress()
     st.info("The extraction is running securely in the background. You can safely navigate to other pages and it will continue!")
     st.stop()
-elif str(st.session_state.get(job_key)).startswith("Error:"):
-    st.error(st.session_state[job_key])
+elif status == "done":
+    if "obligation_results" not in st.session_state:
+        st.session_state["obligation_results"] = {}
+    st.session_state["obligation_results"][selected_contract] = BACKGROUND_TASKS.pop(res_key, None)
+    st.session_state["active_contract"] = selected_contract
+    del BACKGROUND_TASKS[job_key]
+    st.rerun()
+elif status == "cancelled":
+    st.warning("Extraction was cancelled by the user.")
     if st.button("Dismiss"):
-        del st.session_state[job_key]
+        del BACKGROUND_TASKS[job_key]
+        st.rerun()
+    st.stop()
+elif str(status).startswith("Error:"):
+    st.error(status)
+    if st.button("Dismiss"):
+        del BACKGROUND_TASKS[job_key]
         st.rerun()
     st.stop()
 
@@ -482,5 +522,6 @@ if st.button("📥 Download results as JSON"):
         mime="application/json",
     )
 
-# ── Footer ─────────────────────────────────────────────────────────
+
+
 

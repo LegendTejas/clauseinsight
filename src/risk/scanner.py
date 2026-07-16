@@ -388,21 +388,23 @@ def _scan_batch(
     Returns RiskLabel list — falls back to UNKNOWN labels if all retries fail.
     """
     user_prompt = _build_user_prompt(batch)
-    delay = RETRY_DELAY
 
     for attempt in range(1, MAX_SCAN_RETRIES + 1):
+        delay = RETRY_DELAY * (2 ** (attempt - 1))  # reset per-attempt: 5s, 10s, 20s
         try:
             raw = _call_llm(client, system_prompt, user_prompt)
             labels = _parse_llm_response(raw, batch, source_name)
 
-            if len(labels) == len(batch):
-                return labels
+            if len(labels) > 0:
+                if len(labels) != len(batch):
+                    logger.info("LLM returned %d labels for %d clauses. Accepting partial/merged parse.", len(labels), len(batch))
+                return labels  # success — no sleep here, inter-batch sleep is in scan_contract
 
-            # Partial parse — got fewer labels than clauses
             logger.warning(
-                "Batch parse returned %d/%d labels on attempt %d. Retrying...",
-                len(labels), len(batch), attempt
+                "Batch parse returned 0 labels on attempt %d. Retrying...",
+                attempt
             )
+            time.sleep(delay)
 
         except Exception as exc:
             err_str = str(exc).lower()
@@ -415,10 +417,6 @@ def _scan_batch(
                 time.sleep(delay * 2)
             else:
                 time.sleep(delay)
-            delay *= 2
-            continue
-
-        time.sleep(delay)
 
     logger.error(
         "Batch failed after %d attempts — emitting UNKNOWN labels for: %s",
@@ -439,6 +437,7 @@ def scan_contract(
     batch_size: int = SCAN_BATCH_SIZE,
     skip_sub_clauses: bool = True,
     progress_callback: Optional[Callable[[int, int], None]] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
 ) -> ScanResult:
     """
     Scan all clauses of a contract and classify each by risk level.
@@ -456,6 +455,7 @@ def scan_contract(
                           and avoids redundant classifications — the scanner
                           classifies the parent which covers the sub-clause.
                           Set False for maximum granularity.
+        is_cancelled:     Optional function that returns True if the scan should abort early.
 
     Returns:
         ScanResult with all RiskLabel objects and summary counts.
@@ -506,6 +506,10 @@ def scan_contract(
     for batch_num, batch_start in enumerate(
         range(0, len(chunks_to_scan), batch_size), start=1
     ):
+        if is_cancelled and is_cancelled():
+            logger.info("Scan cancelled for '%s'", source_name)
+            break
+
         batch = chunks_to_scan[batch_start: batch_start + batch_size]
 
         logger.info(

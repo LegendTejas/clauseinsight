@@ -37,7 +37,7 @@ from src.retrieval.retriever import retrieve, retrieve_for_contract
 from src.retrieval.context_builder import build_qa_context
 from src.risk.risk_labels import RISK_COLORS, RISK_ICONS, RiskLevel
 from src.ui.theme import (
-    apply_theme, gradient_header, sidebar_brand, top_bar,
+    apply_theme, gradient_header, top_bar, sidebar_brand, risk_badge_html
 )
 
 logger = get_logger(__name__)
@@ -151,12 +151,53 @@ with st.sidebar:
                     st.rerun()
             with colB:
                 if st.button("🗑️", key=f"del_{s['id']}", help="Delete chat"):
+                    # Save to session state for undo
+                    msgs = load_chat_session(conn, s["id"])
+                    st.session_state["recently_deleted_chat"] = {
+                        "id": s["id"],
+                        "title": s["title"],
+                        "messages": msgs
+                    }
                     delete_chat_session(conn, s["id"])
                     if st.session_state.get("chat_session_id") == s["id"]:
                         st.session_state["chat_history"] = []
                         if "chat_session_id" in st.session_state:
                             del st.session_state["chat_session_id"]
                     st.rerun()
+
+    # Undo Button & Ctrl+Z Listener
+    if "recently_deleted_chat" in st.session_state:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("↩️ Undo Delete (Ctrl+Z)", use_container_width=True, key="undo_delete_btn"):
+            chat = st.session_state.pop("recently_deleted_chat")
+            save_chat_session(conn, chat["id"], chat["title"], chat["messages"])
+            st.toast("Chat restored!")
+            st.rerun()
+
+        import streamlit.components.v1 as components
+        components.html(
+            """
+            <script>
+            const doc = window.parent.document;
+            function handleKeyDown(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                    const buttons = Array.from(doc.querySelectorAll('button'));
+                    const undoBtn = buttons.find(b => b.textContent.includes('Undo Delete'));
+                    if (undoBtn) {
+                        e.preventDefault();
+                        undoBtn.click();
+                        doc.removeEventListener('keydown', handleKeyDown);
+                    }
+                }
+            }
+            doc.removeEventListener('keydown', doc.handleKeyDownRef);
+            doc.handleKeyDownRef = handleKeyDown;
+            doc.addEventListener('keydown', handleKeyDown);
+            </script>
+            """,
+            height=0,
+            width=0,
+        )
 
     if "active_contract" in st.session_state:
         st.success(f"**Active:** {st.session_state['active_contract']}")
@@ -205,26 +246,55 @@ if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
 # Display past messages
-for msg in st.session_state["chat_history"]:
+for idx, msg in enumerate(st.session_state["chat_history"]):
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        if msg["role"] == "assistant" and msg.get("citations"):
-            with st.expander("📎 Sources"):
-                for cit in msg["citations"]:
-                    st.markdown(f"- {cit}")
+        if msg["role"] == "user":
+            # For user messages, place the copy button on the right corner
+            col_text, col_btn = st.columns([15, 1])
+            with col_text:
+                st.markdown(msg["content"])
+            with col_btn:
+                if st.button("\u200b", icon=":material/content_copy:", key=f"copy_{idx}", type="tertiary", help="Copy question"):
+                    st.toast("Question ready to copy! (Select and Ctrl+C)")
+        else:
+            # For assistant, text is rendered first, then sources, then action buttons at the bottom
+            st.markdown(msg["content"])
+            
+            if msg.get("citations"):
+                with st.expander("📎 Sources"):
+                    for cit in msg["citations"]:
+                        st.markdown(f"- {cit}")
+            
+            # Assistant action buttons row
+            cols = st.columns([1, 1, 14])
+            with cols[0]:
+                if st.button("\u200b", icon=":material/content_copy:", key=f"copy_{idx}", type="tertiary", help="Copy response"):
+                    st.toast("Response ready to copy! (Select and Ctrl+C)")
+            with cols[1]:
+                if st.button("\u200b", icon=":material/refresh:", key=f"regen_{idx}", type="tertiary", help="Regenerate response"):
+                    # Get the preceding user message
+                    last_user_msg = st.session_state["chat_history"][idx-1]["content"]
+                    # Keep history up to (but not including) the user message
+                    st.session_state["chat_history"] = st.session_state["chat_history"][:idx-1]
+                    st.session_state["regenerate_query"] = last_user_msg
+                    st.rerun()
 
 # ── Suggested Questions ────────────────────────────────────────────
 suggested_query = None
-if not st.session_state["chat_history"]:
+if True:
     st.markdown("<div style='margin-top: 2rem; margin-bottom: 1rem; color: var(--ci-text-muted); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;'>Suggested Questions</div>", unsafe_allow_html=True)
     if source_filter is None and len(contracts) > 1:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("⚖️ Compare termination clauses", use_container_width=True):
                 suggested_query = "Compare the termination clauses between all ingested contracts and list the differences."
+            if st.button("💰 Compare payment terms", use_container_width=True):
+                suggested_query = "What are the differences in payment terms across these contracts?"
         with col2:
             if st.button("🔍 Analyze common liabilities", use_container_width=True):
                 suggested_query = "What are the common liabilities and indemnification terms across these documents?"
+            if st.button("⚖️ Which governing law?", use_container_width=True):
+                suggested_query = "Compare the governing law and jurisdiction of these contracts."
     else:
         col1, col2 = st.columns(2)
         with col1:
@@ -240,7 +310,8 @@ if not st.session_state["chat_history"]:
 
 # ── Query input ────────────────────────────────────────────────────
 user_input = st.chat_input("Ask a question about the contract...")
-query = suggested_query or user_input
+regen_query = st.session_state.pop("regenerate_query", None)
+query = suggested_query or regen_query or user_input
 
 if query:
     # Show user message
@@ -253,11 +324,18 @@ if query:
 
             # ── Retrieve ───────────────────────────────────────────
             try:
-                if source_filter:
-                    chunks = retrieve_for_contract(
-                        query, source_filter,
-                        top_k=top_k, collection=collection,
-                    )
+                chunks = []
+                if source_filter and isinstance(source_filter, list):
+                    # Fetch top_k chunks per selected document to ensure balanced context for comparison
+                    for doc in source_filter:
+                        doc_chunks = retrieve_for_contract(
+                            query, doc,
+                            top_k=top_k, collection=collection,
+                        )
+                        chunks.extend(doc_chunks)
+                    
+                    # Sort combined chunks by similarity score (descending)
+                    chunks.sort(key=lambda x: x.similarity_score, reverse=True)
                 else:
                     chunks = retrieve(
                         query, top_k=top_k, collection=collection,
@@ -365,5 +443,6 @@ if st.session_state["chat_history"]:
             del st.session_state["chat_session_id"]
         st.rerun()
 
-# ── Footer ─────────────────────────────────────────────────────────
+
+
 

@@ -40,6 +40,8 @@ from chromadb.config import Settings
 
 logger = logging.getLogger(__name__)
 
+# Global state for background tasks (thread-safe, avoids Streamlit session_state deadlocks)
+BACKGROUND_TASKS = {}
 
 # ──────────────────────────────────────────────────────────────────
 # Path + collection constants
