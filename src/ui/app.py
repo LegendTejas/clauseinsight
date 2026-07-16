@@ -31,7 +31,7 @@ from src.utils.logger import setup_logging
 import threading
 from src.pipeline.embedder import sync_sqlite_to_chroma
 from src.ui.theme import (
-    apply_theme, gradient_header, feature_card, footer, sidebar_brand, top_bar,
+    apply_theme, gradient_header, feature_card, footer, sidebar_brand, top_bar, sidebar_footer
 )
 
 # Configure logging once — all modules inherit this
@@ -197,3 +197,4 @@ st.markdown("""
 
 # ── Footer ─────────────────────────────────────────────────────────
 footer()
+sidebar_footer()

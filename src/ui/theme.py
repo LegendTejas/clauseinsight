@@ -745,6 +745,164 @@ def footer():
 """, unsafe_allow_html=True)
 
 
+def sidebar_footer():
+    """Render the bottom elements of the sidebar, like the Exit button."""
+    with st.sidebar:
+        # Push to the bottom using empty space
+        st.markdown("<div style='flex-grow: 1;'></div>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # Inject CSS and JS to style the Exit button red and handle hover natively
+        st.markdown("""
+        <style>
+        .exit-btn-custom {
+            color: #ef4444 !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+            transition: all 0.2s ease !important;
+        }
+        .exit-btn-custom p {
+            color: #ef4444 !important;
+        }
+        .exit-btn-custom .material-symbols-rounded {
+            color: #ef4444 !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        .exit-btn-custom:hover {
+            background-color: #ef4444 !important;
+            border-color: #ef4444 !important;
+        }
+        .exit-btn-custom:hover p {
+            color: #ffffff !important;
+        }
+        .exit-btn-custom:hover .material-symbols-rounded {
+            color: #ffffff !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        import streamlit.components.v1 as components
+        components.html(
+            """
+            <script>
+            const doc = window.parent.document;
+            function styleExitBtn() {
+                const buttons = doc.querySelectorAll('button');
+                buttons.forEach(b => {
+                    if (b.textContent.includes('Exit')) {
+                        b.classList.add('exit-btn-custom');
+                    }
+                });
+            }
+            styleExitBtn();
+            // run occasionally in case of re-renders
+            setInterval(styleExitBtn, 1000);
+            </script>
+            """,
+            height=0, width=0
+        )
+        
+        if st.button("Exit", icon=":material/logout:", use_container_width=True, help="Stop the Streamlit server"):
+            # Inject beautiful shutdown UI
+            components.html(
+                """
+                <script>
+                const doc = window.parent.document;
+                doc.body.innerHTML = `
+                    <div style="
+                        display: flex; 
+                        flex-direction: column; 
+                        align-items: center; 
+                        justify-content: center; 
+                        height: 100vh; 
+                        width: 100vw;
+                        background-color: #0E1117; 
+                        background-image: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.15) 0%, #0E1117 60%);
+                        color: #FAFAFA; 
+                        font-family: 'Inter', sans-serif;
+                        margin: 0;
+                        overflow: hidden;
+                    ">
+                        <div style="animation: fadeInUp 0.8s ease-out; text-align: center;">
+                            <div style="font-size: 5rem; margin-bottom: 1rem; animation: float 3s ease-in-out infinite;">⚖️</div>
+                            <h1 style="
+                                font-size: 4.5rem; 
+                                font-weight: 800;
+                                background: linear-gradient(135deg, #4F46E5, #06B6D4); 
+                                -webkit-background-clip: text; 
+                                -webkit-text-fill-color: transparent;
+                                margin: 0 0 0.5rem 0;
+                                letter-spacing: -0.02em;
+                            ">ClauseInsight</h1>
+                            <h2 style="font-size: 1.8rem; color: #94A3B8; font-weight: 400; margin: 0;">Thanks for using our platform.</h2>
+                            
+                            <div style="margin-top: 3rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                                <div id="shutdown-loader" style="
+                                    width: 40px; 
+                                    height: 40px; 
+                                    border: 3px solid rgba(255,255,255,0.1); 
+                                    border-top-color: #06B6D4; 
+                                    border-radius: 50%; 
+                                    animation: spin 1s linear infinite;
+                                "></div>
+                                <p style="color: #64748B; font-size: 0.95rem;">Shutting down server... You may safely close this tab.</p>
+                            </div>
+                            
+                            <p style="
+                                font-family: 'Fredoka One', cursive;
+                                font-weight: 400;
+                                font-size: 15px;
+                                color: #9CA3AF;
+                                letter-spacing: 0.05em;
+                                text-align: center;
+                                margin-top: 32px;
+                            ">Developed by Tejas T. P.</p>
+                        </div>
+                        <style>
+                            @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+                            @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                            @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+                            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                            @keyframes scaleIn { from { transform: scale(0); } to { transform: scale(1); } }
+                        </style>
+                    </div>
+                `;
+                
+                const script = doc.createElement('script');
+                script.textContent = `
+                    setTimeout(() => {
+                        const loader = document.getElementById('shutdown-loader');
+                        if (loader) {
+                            loader.style.animation = 'none';
+                            loader.style.border = 'none';
+                            loader.style.display = 'flex';
+                            loader.style.alignItems = 'center';
+                            loader.style.justifyContent = 'center';
+                            loader.style.backgroundColor = '#10B981';
+                            loader.style.borderRadius = '50%';
+                            loader.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;"><path d="M20 6L9 17l-5-5"/></svg>';
+                        }
+                    }, 5000);
+                `;
+                doc.body.appendChild(script);
+                </script>
+                """,
+                height=0, width=0
+            )
+            
+            # Start background thread to kill the server after the JS has time to render
+            import threading
+            import time
+            import os
+            import signal
+            
+            def delayed_kill():
+                time.sleep(2)  # Give the frontend 2 seconds to receive the JS and update the DOM
+                os.kill(os.getpid(), signal.SIGINT)
+                
+            threading.Thread(target=delayed_kill, daemon=True).start()
+
+
 def _hex_to_rgb(hex_color: str) -> str:
     """Convert #RRGGBB to 'R,G,B' string for use in rgba()."""
     hex_color = hex_color.lstrip('#')
