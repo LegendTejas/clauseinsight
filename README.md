@@ -263,8 +263,6 @@ Beyond the core parse → embed → retrieve → cite pipeline, ClauseInsight sh
 
 - **Scanned PDFs**: no OCR yet — a contract with no embedded text layer returns empty text.
 - **Non-standard formatting**: contracts without numbered section headers fall back to paragraph-splitting, which can reduce citation precision slightly.
-- **Embedding dimension lock-in**: `text-embedding-3-small` produces 1536-dim vectors — don't mix embeddings from a different model into the same ChromaDB collection without clearing `data/chroma/`.
-- **DuckDuckGo isn't an official API**: `ddgs` scrapes public search results, so it has no SLA and can occasionally rate-limit under heavy repeated use.
 - **Large contracts take longer**: a 100-page contract means a lot of batched LLM calls — scanning is safely rate-limited, so expect it to take longer, not to fail.
 
 ---
