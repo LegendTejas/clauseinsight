@@ -6,10 +6,29 @@
 #
 # Jobs
 # ────
-#   lint         — ruff (linter) + black (format check)
-#   typecheck    — pyright static type checking  (via npx)
-#   test         — pytest unit tests only (-m "not integration")
-#                  coverage threshold: 40 %  (workflow override)
+#   lint             — ruff (linter) + black (format check)
+#   typecheck        — pyright static type checking  (via npx)
+#   test (matrix)     — pytest, split one job per test module
+#                       (pipeline / retrieval / risk / obligations),
+#                       so the Actions checks list shows exactly which
+#                       part of the project passed or failed, instead
+#                       of one opaque "test" checkmark hiding ~290
+#                       individual tests inside it. fail-fast: false —
+#                       one module failing doesn't cancel the others,
+#                       so you see the full picture in one run.
+#   coverage         — runs the FULL suite once (all modules together,
+#                       -m "not integration" — no OpenAI/API calls, so
+#                       this costs nothing and needs no secrets) with
+#                       a real coverage gate. Only runs after every
+#                       test-matrix leg passes (see `needs:` below),
+#                       so a genuine test failure is reported by the
+#                       matrix job responsible, not buried in a
+#                       coverage job's log.
+#
+# NOTE: once tests/utils/ exists (added by the executive-summary
+# feature — see src/utils/executive_summary.py), add "utils" to the
+# matrix list below. Left out for now so this workflow doesn't fail
+# on a directory that isn't in every branch yet.
 # ──────────────────────────────────────────────────────────────────
 
 name: CI
@@ -63,10 +82,14 @@ jobs:
         continue-on-error: true
         run: npx --yes pyright src/
 
-  # ── 3. Unit tests ─────────────────────────────────────────────────
+  # ── 3. Unit tests — one job per module ──────────────────────────────
   test:
-    name: Unit tests (pytest)
+    name: Unit tests (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [pipeline, retrieval, risk, obligations]
 
     steps:
       - uses: actions/checkout@v4
@@ -78,13 +101,38 @@ jobs:
       - name: Install project dependencies
         run: pip install -r requirements.txt
 
-      - name: Run unit tests (no API calls)
+      - name: Run unit tests (no API calls) — tests/${{ matrix.suite }}
+        # --no-cov: pytest.ini's addopts bakes in --cov-fail-under=60
+        # for every invocation project-wide. That's correct for the
+        # full-suite coverage job below, but meaningless — and always
+        # failing — against a single module's slice of the codebase.
+        # Coverage is measured properly, once, in the dedicated
+        # "coverage" job instead.
+        run: pytest tests/${{ matrix.suite }} -m "not integration" --no-cov -v
+
+  # ── 4. Coverage gate — full suite, one combined report ──────────────
+  coverage:
+    name: Coverage gate (full suite)
+    runs-on: ubuntu-latest
+    needs: test   # only run once every module above has already passed
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full suite with coverage (no API calls)
         run: |
           pytest -m "not integration" \
             --cov=src \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
-            --cov-fail-under=40
+            --cov-fail-under=55
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -93,4 +141,5 @@ jobs:
           name: coverage-html
           path: htmlcov/
           retention-days: 7
+
 

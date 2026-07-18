@@ -6,17 +6,18 @@
 
     <defs>
 
-        <linearGradient id="aurora"
+        <linearGradient id="combo-sweep"
             x1="0%"
             y1="0%"
             x2="100%"
             y2="0%">
 
-            <stop offset="0%" stop-color="#FFFFFF"/>
-            <stop offset="25%" stop-color="#E5E7EB"/>
-            <stop offset="50%" stop-color="#FFFFFF"/>
-            <stop offset="75%" stop-color="#CBD5E1"/>
-            <stop offset="100%" stop-color="#FFFFFF"/>
+            <stop offset="0%" stop-color="#0debebff"/>
+            <stop offset="20%" stop-color="#0b69c7ff"/>
+            <stop offset="40%" stop-color="#FFFFFF"/>
+            <stop offset="60%" stop-color="#9C27B0"/>
+            <stop offset="80%" stop-color="#b607ebff"/>
+            <stop offset="100%" stop-color="#50ee29ff"/>
 
             <animateTransform
                 attributeName="gradientTransform"
@@ -35,10 +36,10 @@
         text-anchor="middle"
         dominant-baseline="middle"
         font-family="Segoe UI, Arial, sans-serif"
-        font-size="68"
+        font-size="50"
         font-weight="700"
         letter-spacing="-1"
-        fill="url(#aurora)">
+        fill="url(#combo-sweep)">
         ⚖️ ClauseInsight
     </text>
 

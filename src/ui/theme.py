@@ -882,7 +882,7 @@ def sidebar_footer():
                             loader.style.borderRadius = '50%';
                             loader.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;"><path d="M20 6L9 17l-5-5"/></svg>';
                         }
-                    }, 5000);
+                    }, 3000);
                 `;
                 doc.body.appendChild(script);
                 </script>
