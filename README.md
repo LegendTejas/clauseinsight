@@ -1,20 +1,31 @@
 <div align="center">
 
-# ⚖️ ClauseInsight
+<p>
+  <img src="src/ui/pages/title.svg" alt="ClauseInsight" width="900">
+</p>
 
-### Upload a contract. Understand every clause. Know every risk.
+<h3>Upload a contract. Understand every clause. Know every risk.</h3>
 
-*Your AI legal assistant — reads the fine print so you don't have to.*
+<p><i>Your AI legal assistant — reads the fine print so you don't have to.</i></p>
+
+<br>
 
 [![CI](https://github.com/LegendTejas/ClauseInsight/actions/workflows/ci.yml/badge.svg)](https://github.com/LegendTejas/ClauseInsight/actions/workflows/ci.yml)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![OpenAI](https://img.shields.io/badge/LLM-GPT--4o--mini-412991?logo=openai&logoColor=white)](https://platform.openai.com/)
-[![ChromaDB](https://img.shields.io/badge/Vector%20Store-ChromaDB-6851FB)](https://www.trychroma.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-280%2B%20passing-brightgreen)](tests/)
+[![Python](https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white)](https://platform.openai.com/)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-6851FB)](https://www.trychroma.com/)
+[![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/280%2B%20Tests-Passing-success)](tests/)
 
 </div>
+
+---
+
+## ▶️ Demo
+
+* **Live Deployment:** [Link to Streamlit Community Cloud - *Coming Soon*]
+* **Video Walkthrough:** [Link to 3-min Loom Video - *Coming Soon*]
 
 ---
 

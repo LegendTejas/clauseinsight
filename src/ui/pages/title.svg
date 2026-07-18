@@ -1,0 +1,45 @@
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 900 170"
+    width="900"
+    height="170">
+
+    <defs>
+
+        <linearGradient id="aurora"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%">
+
+            <stop offset="0%" stop-color="#FFFFFF"/>
+            <stop offset="25%" stop-color="#E5E7EB"/>
+            <stop offset="50%" stop-color="#FFFFFF"/>
+            <stop offset="75%" stop-color="#CBD5E1"/>
+            <stop offset="100%" stop-color="#FFFFFF"/>
+
+            <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="-1 0;1 0;-1 0"
+                dur="10s"
+                repeatCount="indefinite"/>
+
+        </linearGradient>
+
+    </defs>
+
+    <text
+        x="450"
+        y="92"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        font-family="Segoe UI, Arial, sans-serif"
+        font-size="68"
+        font-weight="700"
+        letter-spacing="-1"
+        fill="url(#aurora)">
+        ⚖️ ClauseInsight
+    </text>
+
+</svg>
