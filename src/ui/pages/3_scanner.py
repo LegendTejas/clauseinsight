@@ -424,7 +424,7 @@ if flagged_in_view:
     with ground_col2:
         capped = len(flagged_in_view) > MAX_CLAUSES_PER_RUN
         st.caption(
-            f"Free web search (DuckDuckGo) for {min(len(flagged_in_view), MAX_CLAUSES_PER_RUN)} "
+            f"Web search (DuckDuckGo) for {min(len(flagged_in_view), MAX_CLAUSES_PER_RUN)} "
             f"HIGH/MEDIUM risk clause(s) currently shown"
             + (f" (capped from {len(flagged_in_view)} to keep the run quick)" if capped else "")
             + "."
