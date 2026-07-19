@@ -890,17 +890,17 @@ def sidebar_footer():
                 height=0, width=0
             )
             
-            # Start background thread to kill the server after the JS has time to render
-            import threading
+            # NOTE: This used to kill the whole server process with
+            # os.kill(os.getpid(), signal.SIGINT). That's fine for a
+            # local `streamlit run` session, but on Streamlit Community
+            # Cloud it kills the ONE shared process serving every visitor,
+            # which the platform then reports as a crash (the "Oh no"
+            # error page) instead of a graceful stop. st.stop() halts
+            # only the current viewer's session/rerun — same shutdown
+            # animation, no effect on the server or other users.
             import time
-            import os
-            import signal
-            
-            def delayed_kill():
-                time.sleep(2)  # Give the frontend 2 seconds to receive the JS and update the DOM
-                os.kill(os.getpid(), signal.SIGINT)
-                
-            threading.Thread(target=delayed_kill, daemon=True).start()
+            time.sleep(2)  # Give the frontend time to receive the JS and update the DOM
+            st.stop()
 
 
 def _hex_to_rgb(hex_color: str) -> str:
