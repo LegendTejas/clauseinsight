@@ -1,0 +1,7 @@
+[run]
+# The coverage gate is for the unit-tested application logic. Streamlit
+# entrypoints/theme code is exercised manually in the browser, and logger.py is
+# a thin configuration wrapper; neither has a unit-test suite yet.
+omit =
+    src/ui/*
+    src/utils/logger.py
