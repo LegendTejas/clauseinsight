@@ -27,6 +27,18 @@ if root_dir not in sys.path:
 load_dotenv()
 
 import streamlit as st
+
+# ── Streamlit Community Cloud secrets bridge ────────────────────────
+# Locally, OPENAI_API_KEY comes from .env via load_dotenv() above.
+# On Community Cloud there is no .env file — secrets are set via the
+# dashboard and only exposed through st.secrets, not os.environ.
+# Every other module in this app (scanner.py, embedder.py, 2_qa.py,
+# extractor.py) reads the key via os.environ.get("OPENAI_API_KEY"),
+# so bridging it here once, before those modules are imported/called,
+# makes the rest of the codebase work unchanged in both environments.
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
 from src.utils.logger import setup_logging
 import threading
 from src.pipeline.embedder import sync_sqlite_to_chroma

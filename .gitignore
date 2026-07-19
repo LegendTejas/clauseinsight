@@ -104,6 +104,11 @@ embedding_cache/
 
 # ── Project-Specific: User Uploaded PDFs ────────────────────────
 # PDFs uploaded by users at runtime — transient, do not commit
+# CUAD_v1 is a 153MB local eval/test dataset — never push this to a repo
+# that gets deployed. The 4 real sample contracts in legal_contracts/
+# (NDA, MSA, Stripe agreements) stay tracked for the live demo.
+legal_contracts/CUAD_v1/
+
 # NOTE: data/sample_contracts/ is intentionally NOT ignored
 #       because those test PDFs are committed for demo purposes
 data/uploads/
