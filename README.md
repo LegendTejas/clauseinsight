@@ -24,7 +24,7 @@
 
 ## ▶️ Demo
 
-* **Live Deployment:** [Link to Streamlit Community Cloud - *Coming Soon*]
+* **Live Deployment:** https://clauseinsight-tejax.streamlit.app
 * **Video Walkthrough:** [Link to 3-min Loom Video - *Coming Soon*]
 
 ---
@@ -264,7 +264,7 @@ Beyond the core parse → embed → retrieve → cite pipeline, ClauseInsight sh
 - **Scanned PDFs**: no OCR yet — a contract with no embedded text layer returns empty text.
 - **Non-standard formatting**: contracts without numbered section headers fall back to paragraph-splitting, which can reduce citation precision slightly.
 - **Large contracts take longer**: a 100-page contract means a lot of batched LLM calls — scanning is safely rate-limited, so expect it to take longer, not to fail.
-
+- **Cold Starts**: The Streamlit Community Cloud deployment may experience a 15-30 second cold start if the app has been inactive.
 ---
 
 ## 📄 License & Acknowledgements
