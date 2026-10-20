@@ -27,6 +27,7 @@ if root_dir not in sys.path:
 load_dotenv()
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # ── Streamlit Community Cloud secrets bridge ────────────────────────
 # Locally, OPENAI_API_KEY comes from .env via load_dotenv() above.
@@ -36,8 +37,15 @@ import streamlit as st
 # extractor.py) reads the key via os.environ.get("OPENAI_API_KEY"),
 # so bridging it here once, before those modules are imported/called,
 # makes the rest of the codebase work unchanged in both environments.
-if "OPENAI_API_KEY" in st.secrets:
-    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+# Reading st.secrets raises StreamlitSecretNotFoundError when no secrets.toml
+# exists anywhere (the normal case for local development). Guard it so a
+# missing secrets file falls through silently to the .env / os.environ path.
+try:
+    if "OPENAI_API_KEY" in st.secrets:
+        os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+except StreamlitSecretNotFoundError:
+    # No secrets.toml present — rely on .env loaded above.
+    pass
 
 from src.utils.logger import setup_logging
 import threading
